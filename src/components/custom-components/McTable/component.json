@@ -1,0 +1,101 @@
+{
+  "name": "表格",
+  "icon":"icon-daohang",
+  "children": [
+    {
+      "component": "McTitle",
+      "name": "标题",
+      "icon": "icon-biaotizujian",
+      "title": "defaultText",
+      "model": "left",
+      "styles": {
+        "titleSize": 16,
+        "titleColor": "#333333"
+      },
+      "rowIndex": 0,
+      "colIndex": 0
+    },
+    {
+      "component": "McTitle",
+      "name": "标题",
+      "icon": "icon-biaotizujian",
+      "title": "defaultText",
+      "model": "left",
+      "styles": {
+        "titleSize": 16,
+        "titleColor": "#333333"
+      },
+      "rowIndex": 0,
+      "colIndex": 1
+    },
+    {
+      "component": "McTitle",
+      "name": "标题",
+      "icon": "icon-biaotizujian",
+      "title": "defaultText",
+      "model": "left",
+      "styles": {
+        "titleSize": 16,
+        "titleColor": "#333333"
+      },
+      "rowIndex": 0,
+      "colIndex": 2
+    },
+    {
+      "component": "McTitle",
+      "name": "标题",
+      "icon": "icon-biaotizujian",
+      "title": "defaultText",
+      "model": "left",
+      "styles": {
+        "titleSize": 16,
+        "titleColor": "#333333"
+      },
+      "rowIndex": 1,
+      "colIndex": 0
+    },
+    {
+      "component": "McTitle",
+      "name": "标题",
+      "icon": "icon-biaotizujian",
+      "title": "defaultText",
+      "model": "left",
+      "styles": {
+        "titleSize": 16,
+        "titleColor": "#333333"
+      },
+      "rowIndex": 1,
+      "colIndex": 1
+    },
+    {
+      "component": "McTitle",
+      "name": "标题",
+      "icon": "icon-biaotizujian",
+      "title": "defaultText",
+      "model": "left",
+      "styles": {
+        "titleSize": 16,
+        "titleColor": "#333333"
+      },
+      "rowIndex": 1,
+      "colIndex": 2
+    }
+  ],
+  "fields": {
+    "rowCount": {
+      "label": "行数",
+      "type": "number",
+      "value": 2
+    },
+    "colCount": {
+      "label": "列数",
+      "type": "number",
+      "value": 3
+    },
+    "padding": {
+      "label": "上下间距",
+      "type": "number",
+      "value": 100
+    }
+  }
+}
