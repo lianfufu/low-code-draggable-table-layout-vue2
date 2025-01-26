@@ -6,7 +6,7 @@
  * @LastEditTime: 2021-12-28 09:23:23
 -->
 <template>
-  <div class="title ellipsis-1">
+  <div class="title">
     <div :style="getStyles">{{title}}</div>
   </div>
 </template>

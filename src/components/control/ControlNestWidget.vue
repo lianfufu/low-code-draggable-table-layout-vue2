@@ -21,7 +21,6 @@
 
 export default {
   name: "ControlNestWidget",
-  emits:["updateTableChildData"],
   props:{
     isWidget:{
       type:Boolean,
@@ -30,15 +29,7 @@ export default {
     widgets:{
       type:Array,
       default:() => []
-    },
-    cellRowIndex:{
-      type:Number,
-      default:Number.NaN
-    },
-    cellColIndex:{
-      type:Number,
-      default:Number.NaN
-    },
+    }
   },
   inject:["control"],
   data(){
@@ -56,12 +47,6 @@ export default {
     },
     list:{
       handler(value){
-        if(!Number.isNaN(this.cellColIndex)&&!Number.isNaN(this.cellRowIndex)){
-          value.forEach(item=>{
-            item.rowIndex=this.cellRowIndex;
-            item.colIndex=this.cellColIndex;
-          });
-        }
         this.$emit("update:widgets",value);
       }
     },
@@ -72,7 +57,6 @@ export default {
     deleteWidget(component){
       this.list.splice(this.list.indexOf(component),1);
       this.control.curComponent=null;
-      this.$emit("updateTableChildData",component);
     }
   }
 }
