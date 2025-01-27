@@ -1,4 +1,19 @@
-# low-code-draggable-table-layout-vue2
-Aim at improving the effiency of frontend layout work by using vue2, you can use this tool by dragging the component you want into drawing area. The most recommend operation is dragging table component firstly, then you can justify the table column or row size by the setting area, and then drag the component you want into table cell.
+# drag-mall-project
 
-the basic reference is the following open source project:https://github.com/wangyuan389/mall-cook
+## Project setup
+```
+npm install
+```
+
+### Compiles and hot-reloads for development
+```
+npm run serve
+```
+
+### Compiles and minifies for production
+```
+npm run build
+```
+
+### Customize configuration
+See [Configuration Reference](https://cli.vuejs.org/config/).

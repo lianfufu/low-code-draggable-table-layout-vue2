@@ -10,8 +10,11 @@
     <table class="table" border="1">
       <tbody>
         <tr v-for="(item,index) in tableDataArr2" :key="index">
-          <td :style="{width:everyColWidth}" v-for="(item2,index2) in item" :key="index2">
-            <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgets(index,index2)" :widgets.sync="item2"/>
+          <td class="flex-td" :style="{width:everyColWidth}" v-for="(item2,index2) in item" :key="index2">
+            <McTableItemContainer>
+              <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgets(index,index2)" :widgets.sync="item2"/>
+            </McTableItemContainer>
+<!--            <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgets(index,index2)" :widgets.sync="item2"/>-->
           </td>
         </tr>
       </tbody>
@@ -107,8 +110,11 @@ export default {
 .wrap {
   .table{
     table-layout: fixed;
-    td {
+    .flex-td {
       word-wrap: break-word !important;
+      display: flex;
+      flex-direction: column; /* 默认为 row，但设置为 column 可以确保 div 垂直填充 */
+      align-items: stretch; /* 确保 flex 项目（div）在交叉轴上拉伸以填充容器 */
     }
   }
 }

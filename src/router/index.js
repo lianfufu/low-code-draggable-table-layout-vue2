@@ -13,6 +13,21 @@ const routes = [
     path: '/schema',
     name: 'Schema',
     component: () => import("@/views/schema.vue")
+  },
+  {
+    path: '/resize',
+    name: 'Resize',
+    component: () => import("@/views/ResizeCellTest.vue")
+  },
+  {
+    path: '/resizetable',
+    name: 'ResizeTable',
+    component: () => import("@/views/ResizeTable.vue")
+  },
+  {
+    path: '/resizecolumn',
+    name: 'ResizeColumn',
+    component: () => import("@/views/ResizeColumn.vue")
   }
 ]
 

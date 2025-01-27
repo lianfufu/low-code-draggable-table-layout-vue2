@@ -8,12 +8,14 @@
         :animation="500"
         :sort="true"
         :group="{name:'xtwangzi'}">
-      <WidgetShape v-for="(item,key,index) in list" :cur-component="item" :key="item.id" v-bind="item" @deleteWidget="deleteWidget">
-        <component v-if="item.component!=='MCTable'" :is="item.component" v-bind="item">
-          <ControlNestWidget :isWidget="true" :widgets.sync="item.children"></ControlNestWidget>
-        </component>
-        <component v-else :is="item.component" v-bind="item"/>
-      </WidgetShape>
+      <div>
+        <WidgetShape v-for="(item,key,index) in list" :cur-component="item" :key="item.id" v-bind="item" @deleteWidget="deleteWidget">
+          <component v-if="item.component!=='MCTable'" :is="item.component" v-bind="item">
+            <ControlNestWidget :isWidget="true" :widgets.sync="item.children"></ControlNestWidget>
+          </component>
+          <component v-else :is="item.component" v-bind="item"/>
+        </WidgetShape>
+      </div>
     </draggable>
 </template>
 
