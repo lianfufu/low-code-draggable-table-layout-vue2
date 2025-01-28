@@ -66,41 +66,6 @@ export default {
         }
       }
       return res;
-    },
-    everyColWidth(){
-      return 100/this.colCount+"%";
-    }
-  },
-  watch:{
-    tableDataArr2:{
-      handler(newVal,oldVal){
-        console.log(newVal);
-      },
-      deep:true,
-    },
-    // children:{
-    //   handler(value){
-    //     this.tabData=value;
-    //   },
-    //   immediate:true,
-    //   deep:true
-    // }
-  },
-  methods:{
-    doUpdateWidgets(rowIndex,colIndex,delValue){
-      console.log(this.children,rowIndex,colIndex);
-      const target=this.children.findIndex(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
-      if(target!==-1){
-        this.children.splice(target,1);
-      }
-      // console.log(target,"target");
-      // if(target&&target.length===1){
-      //   const targetIndex=this.children.indexOf(target);
-      //   console.log(targetIndex);
-      //   this.children.splice(targetIndex,1);//只改children就够了。但不会触发这个tableDataArr2()，因为children地址没变。但不影向点击单元格的内容，内层会删除元素了。
-      //   //
-      //   console.log(this.children);
-      // }
     }
   }
 }
@@ -108,6 +73,7 @@ export default {
 
 <style lang="scss" scoped>
 .wrap {
+<<<<<<< HEAD
   .table{
     table-layout: fixed;
     .flex-td {
@@ -115,6 +81,26 @@ export default {
       display: flex;
       flex-direction: column; /* 默认为 row，但设置为 column 可以确保 div 垂直填充 */
       align-items: stretch; /* 确保 flex 项目（div）在交叉轴上拉伸以填充容器 */
+=======
+  .wrap-body {
+    overflow-x:hidden;
+    &::-webkit-scrollbar {
+      display: none; /* Chrome Safari */
+    }
+
+    .tabs {
+      .tab-item {
+        display: inline-block;
+        text-align: center;
+
+        .tab-item-img {
+          width:100%;
+          overflow: hidden;
+          //height: 100%;
+           margin-bottom: 5px;
+        }
+      }
+>>>>>>> 8ff8c1bf18cedb70768cf47e03252c4cc8dfa4db
     }
   }
 }
