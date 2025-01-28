@@ -7,7 +7,8 @@
           :group="{name:'xtwangzi',pull:'clone'}"
           :sort="false"
           :clone="handleClone"
-          animation="300">
+          animation="300"
+      @ended="dropEnd">
         <div class="model-item" v-for="(item, index) in $initializing" :key="index">
           <i class="iconfont" :class="item.icon"></i>
           <span>{{item.name}}</span>
@@ -27,14 +28,23 @@
       :component="curComponent"
       :curFields="curFields"/>
       <div class="widget-config-source">
-        {{ curComponent?JSON.stringify(curComponent):"无" }}
+        <span style="color:dodgerblue" class="f13">物料数据：</span>
+        <json-viewer v-if="curComponent"
+            :value="curComponent"
+            :expand-depth="6"
+        ></json-viewer>
+        <span v-else style="word-break:break-all; word-wrap:break-word;">无</span>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import JsonViewer from 'vue-json-viewer'
 export default {
+  components: {
+    JsonViewer
+  },
   name: "PageBody",
   data(){
     return{
@@ -61,6 +71,9 @@ export default {
       };
       console.log(res);
       return res;
+    },
+    dropEnd(event){
+      console.log(event);
     }
   },
   // watch:{

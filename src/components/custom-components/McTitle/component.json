@@ -5,7 +5,7 @@
     "title": {
       "label": "标题",
       "type": "string",
-      "value": "LEADING SERIES"
+      "value": "defaultText"
     },
     "model": {
       "label": "布局选择",
@@ -36,7 +36,7 @@
         "titleSize": {
           "label": "标题字体",
           "type": "number",
-          "value": 20
+          "value": 16
         },
         "titleColor": {
           "label": "标题颜色",

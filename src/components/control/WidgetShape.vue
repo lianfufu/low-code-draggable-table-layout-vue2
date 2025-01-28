@@ -1,10 +1,10 @@
 <template>
   <div class="widget-shape" @click.stop="setCurComponent">
     <div class="operate-bar">
-      <div v-show="isSelected" @click="doDeleteComponent">
-        X
+      <div class="f14" v-show="isSelected" @click="doDeleteComponent">
+        x
       </div>
-      <div v-show="!isSelected">
+      <div class="f14" v-show="!isSelected">
         {{ name }}
       </div>
     </div>
@@ -48,14 +48,15 @@ export default {
     outline:1px dashed $color-theme;
   }
   .operate-bar{
-    width:75px;
+    min-width: 30px;
     text-align: center;
-    height:28px;
-    line-height:28px;
+    height:20px;
+    line-height:20px;
     position: absolute;
     top:0;
-    right:-80px;
+    right:-35px;
     background-color: #cccccc;
+    z-index: 999;
   }
 }
 </style>

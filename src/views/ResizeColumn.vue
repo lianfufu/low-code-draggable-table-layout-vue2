@@ -1,30 +1,28 @@
 <template>
   <div class="table-container">
     <table>
-      <thead>
-      <tr>
-        <th v-for="(header, index) in headers" :key="index">{{ header }}</th>
-      </tr>
-      </thead>
+<!--      <thead>-->
+<!--      <tr>-->
+<!--        <th v-for="(header, index) in headers" :key="index" :style="{ width: columnWidths[index] + 'px' }">{{ header }}</th>-->
+<!--      </tr>-->
+<!--      </thead>-->
       <tbody>
       <tr v-for="(row, rowIndex) in rows" :key="rowIndex" :style="{ height: rowHeights[rowIndex] + 'px' }">
         <td
             v-for="(cell, cellIndex) in row"
             :key="cellIndex"
             :style="{ width: columnWidths[cellIndex] + 'px' }"
-            class="resizable-cell"
+            class="resizable-cell flex-td"
         >
-          {{ cell }}
+          <div class="table-container">
+            {{ cell }}
+          </div>
           <div class="row-resizer" @mousedown="startResizingRow(rowIndex)"></div>
           <div
               class="col-resizer"
               v-if="cellIndex < row.length - 1"
               @mousedown="startResizingColumn(cellIndex, rowIndex)"
           ></div>
-        </td>
-        <td :style="{ width: columnWidths[row.length - 1] + 'px' }">
-          {{ row[row.length - 1] }}
-          <!-- 最后一列没有列宽拖拽柄 -->
         </td>
       </tr>
       </tbody>
@@ -44,7 +42,7 @@ export default {
         ['Cell 3-1', 'Cell 3-2', 'Cell 3-3'],
       ],
       rowHeights: [30, 30, 30], // 初始行高
-      columnWidths: [100, 100, 100], // 初始列宽
+      columnWidths: [200, 200, 200], // 初始列宽
       isResizingRow: false,
       isResizingColumn: false,
       resizingRowIndex: null,
@@ -58,6 +56,7 @@ export default {
       this.isResizingRow = true;
       this.resizingRowIndex = rowIndex;
       this.initialY = event.clientY;
+      // console.log(event);
       document.addEventListener('mousemove', this.resizeRow);
       document.addEventListener('mouseup', this.stopResizingRow);
     },
@@ -78,8 +77,9 @@ export default {
       this.isResizingColumn = true;
       this.resizingColumnIndex = columnIndex;
       this.initialX = event.clientX;
+      // console.log(event);
       // 保存当前列的初始宽度，用于后续计算
-      this.initialColumnWidth = this.columnWidths[columnIndex];
+      // this.initialColumnWidth = this.columnWidths[columnIndex];
       document.addEventListener('mousemove', this.resizeColumn);
       document.addEventListener('mouseup', this.stopResizingColumn);
     },
@@ -87,10 +87,11 @@ export default {
       if (!this.isResizingColumn) return;
       const deltaX = event.clientX - this.initialX;
       // 调整列宽，确保最小宽度
-      const newWidth = Math.max(50, this.initialColumnWidth + deltaX);
+      const newWidth = Math.max(50, this.columnWidths[this.resizingColumnIndex] + deltaX);
       // 如果是非最后一列，需要调整相邻列的宽度
       if (this.resizingColumnIndex < this.columnWidths.length - 1) {
         const nextColumnWidth = this.columnWidths[this.resizingColumnIndex + 1] - deltaX;
+        console.log(deltaX,newWidth,nextColumnWidth);
         // 确保相邻列的最小宽度
         if (nextColumnWidth >= 50) {
           this.$set(this.columnWidths, this.resizingColumnIndex, newWidth);
@@ -102,6 +103,25 @@ export default {
       }
       this.initialX = event.clientX;
     },
+    // startResizingColumn(event, columnIndex) {
+    //   this.isResizingColumn = true;
+    //   this.resizingColumnIndex = columnIndex;
+    //   this.initialX = event.clientX;
+    //   this.initialColumnWidth = this.columnWidths[columnIndex];
+    //   document.addEventListener('mousemove', this.resizeColumn);
+    //   document.addEventListener('mouseup', this.stopResizingColumn);
+    // },
+    //
+    // resizeColumn(event) {
+    //   if (!this.isResizingColumn) return;
+    //   const deltaX = event.clientX - this.initialX;
+    //   const newWidth = Math.max(50, this.initialColumnWidth + deltaX);
+    //
+    //   if (this.resizingColumnIndex < this.columnWidths.length - 1) {
+    //     this.$set(this.columnWidths, this.resizingColumnIndex, newWidth);
+    //   }
+    //   this.initialX = event.clientX;
+    // },
     stopResizingColumn() {
       this.isResizingColumn = false;
       document.removeEventListener('mousemove', this.resizeColumn);
@@ -117,14 +137,22 @@ export default {
 }
 
 table {
-  width: 100%;
-  border-collapse: collapse;
+  width: 600px;
   table-layout: fixed; /* 确保列宽固定 */
+  overflow: hidden;
+  .flex-td {
+    word-wrap: break-word !important;
+    .table-container{
+      //display: table-cell;
+      height: auto;
+      background-color: #c0ccda;
+    }
+  }
 }
 
 th, td {
+  box-sizing: border-box;
   border: 1px solid #ccc;
-  padding: 8px;
   text-align: left;
   position: relative;
 }
@@ -134,32 +162,33 @@ th, td {
 }
 
 .row-resizer {
-  width: 100%;
-  height: 5px;
+  width: 4000px;
+  height: 1px;
   cursor: ns-resize;
   background-color: #999;
   position: absolute;
   bottom: 0;
-  left: 0;
-  z-index: 10;
+  left: -2000px;
+  z-index: 999;
 }
 
 .row-resizer:hover {
-  background-color: #666;
+  background-color: #0000ff;
 }
 
 .col-resizer {
-  width: 5px;
+  width: 1px;
+  height: 4000px;
   cursor: ew-resize;
   background-color: #999;
   position: absolute;
-  top: 0;
+  top: -2000px;
   right: 0;
   bottom: 0;
-  z-index: 10;
+  z-index: 999;
 }
 
 .col-resizer:hover {
-  background-color: #666;
+  background-color: #0000ff;
 }
 </style>

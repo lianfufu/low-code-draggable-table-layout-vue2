@@ -8,14 +8,12 @@
         :animation="500"
         :sort="true"
         :group="{name:'xtwangzi'}">
-      <div>
-        <WidgetShape v-for="(item,key,index) in list" :cur-component="item" :key="item.id" v-bind="item" @deleteWidget="deleteWidget">
-          <component v-if="item.component!=='MCTable'" :is="item.component" v-bind="item">
-            <ControlNestWidget :isWidget="true" :widgets.sync="item.children"></ControlNestWidget>
-          </component>
-          <component v-else :is="item.component" v-bind="item"/>
-        </WidgetShape>
-      </div>
+      <WidgetShape v-for="(item,key,index) in list" :cur-component="item" :key="item.id" v-bind="item" @deleteWidget="deleteWidget">
+        <component v-if="item.component!=='MCTable'" :is="item.component" v-bind="item">
+          <ControlNestWidget :isWidget="true" :widgets.sync="item.children"></ControlNestWidget>
+        </component>
+        <component v-else :is="item.component" v-bind="item" :children.sync="item.children"/>
+      </WidgetShape>
     </draggable>
 </template>
 
@@ -23,6 +21,7 @@
 
 export default {
   name: "ControlNestWidget",
+  emits:["updateTableChildData"],
   props:{
     isWidget:{
       type:Boolean,
@@ -31,7 +30,15 @@ export default {
     widgets:{
       type:Array,
       default:() => []
-    }
+    },
+    cellRowIndex:{
+      type:Number,
+      default:Number.NaN
+    },
+    cellColIndex:{
+      type:Number,
+      default:Number.NaN
+    },
   },
   inject:["control"],
   data(){
@@ -49,6 +56,13 @@ export default {
     },
     list:{
       handler(value){
+        if(!Number.isNaN(this.cellColIndex)&&!Number.isNaN(this.cellRowIndex)){
+          value.forEach(item=>{
+            item.rowIndex=this.cellRowIndex;
+            item.colIndex=this.cellColIndex;
+          });
+        }
+        console.log(value);
         this.$emit("update:widgets",value);
       }
     },
@@ -59,6 +73,7 @@ export default {
     deleteWidget(component){
       this.list.splice(this.list.indexOf(component),1);
       this.control.curComponent=null;
+      this.$emit("updateTableChildData",component);
     }
   }
 }

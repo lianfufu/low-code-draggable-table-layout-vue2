@@ -12,9 +12,8 @@
         <tr v-for="(item,index) in tableDataArr2" :key="index">
           <td class="flex-td" :style="{width:everyColWidth}" v-for="(item2,index2) in item" :key="index2">
             <McTableItemContainer>
-              <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgets(index,index2)" :widgets.sync="item2"/>
+              <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgetsForDel(index,index2)" @update:widgets="doUpdateWidgets" :widgets.sync="item2"/>
             </McTableItemContainer>
-<!--            <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgets(index,index2)" :widgets.sync="item2"/>-->
           </td>
         </tr>
       </tbody>
@@ -28,7 +27,9 @@ export default {
   name: 'McTable',
   data(){
     return {
-      tabData:[]
+      tabData:[],
+      colWidths:[],
+      rowWidths:[]
     }
   },
   props:{
@@ -49,23 +50,92 @@ export default {
       default:2
     }
   },
+  mounted() {
+    for(let i=0;i<this.colCount;i++){
+      this.colWidths.push(100/this.colCount+"%");
+    }
+    
+    for(let j=0;j<this.rowCount;j++){
+      this.rowWidths.push("30px");
+    }
+  },
   computed:{
     tableDataArr2(){
+      console.log("删除后重新计算tableDataArr2");
       const res=[];
       for (let i=0;i<this.rowCount;i++){
         res[i]=[];
         for (let j=0;j<this.colCount;j++){
-          const matchedChild=this.children.filter(item=>item.rowIndex===i&&item.colIndex===j);
+          const matchedChild=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j);
           if(matchedChild&&matchedChild.length>0){
-            const first=matchedChild[0];
-            first.id=this.$getRandomCode(8);
-            res[i][j]=[first];
+            if(matchedChild.length===1){
+              const first=matchedChild[0];
+              first.id=this.$getRandomCode(8);
+              res[i][j]=[first];
+            }else{
+              res[i][j]=matchedChild;
+            }
           }else{
             res[i][j]=[];
           }
         }
       }
       return res;
+    },
+    everyColWidth(){
+      return 100/this.colCount+"%";
+    },
+  },
+  watch:{
+    tableDataArr2:{
+      handler(newVal,oldVal){
+        console.log(newVal);
+      },
+      deep:true,
+    },
+    children:{
+      handler(value){
+        this.tabData=value;
+      },
+      immediate:true,
+      deep:true
+    },
+    tabData:{
+      handler(value){
+        this.$emit("update:children",value);
+      },
+      immediate:true,
+      deep:true
+    },
+    colCount:{
+      hanlder(value){
+
+      }
+    }
+  },
+  methods:{
+    doUpdateWidgetsForDel(rowIndex,colIndex,delValue){
+      const target=this.tabData.findIndex(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
+      if(target!==-1){
+        this.tabData.splice(target,1);
+      }
+    },
+    doUpdateWidgets(newValue){
+      const newItems=[];
+      if(newValue&&Array.isArray(newValue)){
+        for (const item of newValue) {
+          if(item.id){
+            const target = this.tabData.find(item2=>item2.id===item.id);
+            if(!target){
+              newItems.push(item);
+            }
+          }
+        }
+      }
+      newItems.length>0&&newItems.forEach(item=>{
+        this.tabData.push(item);
+      })
+      console.log("监听item2的改变",newValue,newItems);
     }
   }
 }
@@ -73,34 +143,11 @@ export default {
 
 <style lang="scss" scoped>
 .wrap {
-<<<<<<< HEAD
   .table{
     table-layout: fixed;
     .flex-td {
       word-wrap: break-word !important;
-      display: flex;
-      flex-direction: column; /* 默认为 row，但设置为 column 可以确保 div 垂直填充 */
-      align-items: stretch; /* 确保 flex 项目（div）在交叉轴上拉伸以填充容器 */
-=======
-  .wrap-body {
-    overflow-x:hidden;
-    &::-webkit-scrollbar {
-      display: none; /* Chrome Safari */
-    }
-
-    .tabs {
-      .tab-item {
-        display: inline-block;
-        text-align: center;
-
-        .tab-item-img {
-          width:100%;
-          overflow: hidden;
-          //height: 100%;
-           margin-bottom: 5px;
-        }
-      }
->>>>>>> 8ff8c1bf18cedb70768cf47e03252c4cc8dfa4db
+      border: 1px solid greenyellow;
     }
   }
 }
