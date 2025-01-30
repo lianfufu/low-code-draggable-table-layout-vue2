@@ -37,11 +37,11 @@ export default {
   },
   computed:{
     tabItemWidth(){
-      return `${375/this.attrs.max}px`
+      return `${430/this.attrs.max}px`
     },
     tabWidth(){
-      const width=this.tabList.length*375/this.attrs.max;
-      return `${width<=375?375:width}px`
+      const width=this.tabList.length*430/this.attrs.max;
+      return `${width<=430?430:width}px`
     },
     bodyStyle(){
       return{

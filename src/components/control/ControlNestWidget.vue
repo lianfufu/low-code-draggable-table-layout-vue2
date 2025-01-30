@@ -56,10 +56,35 @@ export default {
     },
     list:{
       handler(value){
+        //当数据是为了列表进行服务的
         if(!Number.isNaN(this.cellColIndex)&&!Number.isNaN(this.cellRowIndex)){
           value.forEach(item=>{
             item.rowIndex=this.cellRowIndex;
             item.colIndex=this.cellColIndex;
+            if(!item.cellFields){
+              item.cellFields={
+                "contentBgc": {
+                  "label": "背景色",
+                  "type": "color",
+                  "value": "#fff"
+                },
+                "padding": {
+                  "label": "内边距",
+                  "type": "number",
+                  "value": 3
+                }
+              }
+            }
+            if(!item.cellFieldVal){
+              item.cellFieldVal={};
+              for (const cellFieldsKey in item.cellFields) {
+                if(item.cellFields.hasOwnProperty(cellFieldsKey)){
+                  if(item.cellFields[cellFieldsKey].value){
+                    item.cellFieldVal[cellFieldsKey]=item.cellFields[cellFieldsKey].value;
+                  }
+                }
+              }
+            }
           });
         }
         console.log(value);

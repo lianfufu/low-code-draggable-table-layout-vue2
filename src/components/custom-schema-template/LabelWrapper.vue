@@ -1,6 +1,6 @@
 <template>
   <div class="label-wrapper p10 ">
-    <div class="w70 f13 f-grey">{{label}}</div>
+    <div class="w80 f13 f-grey">{{label}}</div>
     <slot></slot>
   </div>
 </template>

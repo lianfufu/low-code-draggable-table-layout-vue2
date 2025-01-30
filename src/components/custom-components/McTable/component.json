@@ -13,7 +13,23 @@
         "titleColor": "#333333"
       },
       "rowIndex": 0,
-      "colIndex": 0
+      "colIndex": 0,
+      "cellFields": {
+        "contentBgc": {
+          "label": "背景色",
+          "type": "color",
+          "value": "#fff"
+        },
+        "padding": {
+          "label": "内边距",
+          "type": "number",
+          "value": 3
+        }
+      },
+      "cellFieldsVal": {
+        "contentBgc": "#fff",
+        "padding": 3
+      }
     },
     {
       "component": "McTitle",
@@ -26,7 +42,23 @@
         "titleColor": "#333333"
       },
       "rowIndex": 0,
-      "colIndex": 1
+      "colIndex": 1,
+      "cellFields": {
+        "contentBgc": {
+          "label": "背景色",
+          "type": "color",
+          "value": "#fff"
+        },
+        "padding": {
+          "label": "内边距",
+          "type": "number",
+          "value": 3
+        }
+      },
+      "cellFieldsVal": {
+        "contentBgc": "#fff",
+        "padding": 3
+      }
     },
     {
       "component": "McTitle",
@@ -39,7 +71,23 @@
         "titleColor": "#333333"
       },
       "rowIndex": 0,
-      "colIndex": 2
+      "colIndex": 2,
+      "cellFields": {
+        "contentBgc": {
+          "label": "背景色",
+          "type": "color",
+          "value": "#fff"
+        },
+        "padding": {
+          "label": "内边距",
+          "type": "number",
+          "value": 3
+        }
+      },
+      "cellFieldsVal": {
+        "contentBgc": "#fff",
+        "padding": 3
+      }
     },
     {
       "component": "McTitle",
@@ -52,7 +100,23 @@
         "titleColor": "#333333"
       },
       "rowIndex": 1,
-      "colIndex": 0
+      "colIndex": 0,
+      "cellFields": {
+        "contentBgc": {
+          "label": "背景色",
+          "type": "color",
+          "value": "#fff"
+        },
+        "padding": {
+          "label": "内边距",
+          "type": "number",
+          "value": 3
+        }
+      },
+      "cellFieldsVal": {
+        "contentBgc": "#fff",
+        "padding": 3
+      }
     },
     {
       "component": "McTitle",
@@ -65,7 +129,23 @@
         "titleColor": "#333333"
       },
       "rowIndex": 1,
-      "colIndex": 1
+      "colIndex": 1,
+      "cellFields": {
+        "contentBgc": {
+          "label": "背景色",
+          "type": "color",
+          "value": "#fff"
+        },
+        "padding": {
+          "label": "内边距",
+          "type": "number",
+          "value": 3
+        }
+      },
+      "cellFieldsVal": {
+        "contentBgc": "#fff",
+        "padding": 3
+      }
     },
     {
       "component": "McTitle",
@@ -78,7 +158,23 @@
         "titleColor": "#333333"
       },
       "rowIndex": 1,
-      "colIndex": 2
+      "colIndex": 2,
+      "cellFields": {
+        "contentBgc": {
+          "label": "背景色",
+          "type": "color",
+          "value": "#fff"
+        },
+        "padding": {
+          "label": "内边距",
+          "type": "number",
+          "value": 3
+        }
+      },
+      "cellFieldsVal": {
+        "contentBgc": "#fff",
+        "padding": 3
+      }
     }
   ],
   "fields": {
@@ -96,6 +192,38 @@
       "label": "上下间距",
       "type": "number",
       "value": 100
+    },
+    "isShowBorder": {
+      "label": "是否显示边框",
+      "type": "switch",
+      "value": true
+    },
+    "globalCellBgc": {
+      "label": "单元格样式",
+      "type": "color",
+      "value": "#000000"
+    },
+    "model": {
+      "label": "单元格内容",
+      "type": "select",
+      "value": "top",
+      "data": [
+        {
+          "id": "1635161793h3mJ",
+          "label": "居顶",
+          "value": "top"
+        },
+        {
+          "id": "1635161794uYJI",
+          "label": "居中",
+          "value": "middle"
+        },
+        {
+          "id": "1635161334uYJI",
+          "label": "居底",
+          "value": "bottom"
+        }
+      ]
     }
   }
 }

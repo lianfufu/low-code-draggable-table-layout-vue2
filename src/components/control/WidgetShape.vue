@@ -48,7 +48,7 @@ export default {
     outline:1px dashed $color-theme;
   }
   .operate-bar{
-    min-width: 30px;
+    width: 30px;
     text-align: center;
     height:20px;
     line-height:20px;

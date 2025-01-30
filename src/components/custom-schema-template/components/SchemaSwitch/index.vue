@@ -18,7 +18,7 @@
 import schemaMixin from "@/mixin/schemaMixin";
 
 export default {
-  name: "SchemaSwitch",
+  name: "SchemaSwitchSix",
 
   mixins: [schemaMixin],
 

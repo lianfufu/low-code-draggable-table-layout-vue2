@@ -49,17 +49,13 @@ export default {
   data(){
     return{
       curComponent:null,
-      widgets:[]
+      widgets:[],
+      curFields:null
     }
   },
   provide(){
     return{
       control:this
-    }
-  },
-  computed:{
-    curFields(){
-      return this.$fields[this.curComponent.component];
     }
   },
   methods: {
@@ -76,15 +72,17 @@ export default {
       console.log(event);
     }
   },
-  // watch:{
-  //   widgets:{
-  //     handler(value){
-  //       console.log(value,"widgets改变了");
-  //     },
-  //     immediate:true,
-  //     deep:true
-  //   }
-  // }
+  watch:{
+    curComponent:{
+      handler(value){
+        if(value?.component&&this.$fields[value.component]){
+          this.curFields = this.$fields[this.curComponent.component];
+        }
+      },
+      immediate:true,
+      deep:true
+    }
+  }
 }
 </script>
 
@@ -131,10 +129,9 @@ export default {
     .panel {
       width: 100%;
       max-width: 900px;
-
       .panel-content {
-        width: 375px;
-        min-height: 600px;
+        width: 430px;
+        min-height: 800px;
         margin: 50px auto;
         background: #fff;
         box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.1);
