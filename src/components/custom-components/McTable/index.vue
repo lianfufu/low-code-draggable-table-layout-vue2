@@ -10,7 +10,7 @@
     <table class="table" :border="isShowBorder?1:0">
       <tbody>
         <tr v-for="(item,index) in tableDataArr2" :style="{height:rowHeights[index]+'px'}" :key="index">
-          <td :class="[isShowBorder?'':'no-border']" v-for="(item2,index2) in item" :key="index2" :valign="model" @click.stop="showTableConfig(item2)" class="resizable-cell flex-td" :style="getCellStyle(columnWidths,item2,index2)">
+          <td :class="[isShowBorder?'':'no-border',isSelectedCell(index,index2)?'selected-cell':'']" v-for="(item2,index2) in item" :key="index2" :ref="`td_${index}_${index2}`" @mousedown="tdMouseDown" @mousemove="tdMouseMove" @mouseup="tdMouseUp" :valign="model" @click.stop="showTableConfig(item2,index,index2)" class="resizable-cell flex-td" :style="getCellStyle(columnWidths,item2,index2)">
             <McTableItemContainer>
               <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgetsForDel(index,index2)" @update:widgets="doUpdateWidgets" :widgets.sync="item2"/>
             </McTableItemContainer>
@@ -32,6 +32,8 @@
 
 <script>
 
+import _ from "lodash";
+
 export default {
   name: 'McTable',
   data(){
@@ -44,8 +46,13 @@ export default {
       resizingRowIndex: null,
       resizingColumnIndex: null,
       parentWidth:430,
-      initialY: 0,
-      initialX: 0,
+      initialY: 0,//控制拖拽柄拖拽位置的逻辑Y
+      initialX: 0,//控制拖拽柄拖拽位置的逻辑X
+      pickedCellY: 0,//控制拖拽柄拖拽位置的逻辑Y
+      pickedCellX: 0,//控制拖拽柄拖拽位置的逻辑X
+      cellIsMouseMove:false,
+      curOriginalHoverCells:[],//原始经过的单元格
+      allCellRefs:[],//通过ref绑定的所有的td对象
     }
   },
   inject:["control"],
@@ -87,6 +94,7 @@ export default {
     for(let j=0;j<this.rowCount;j++){
       this.rowHeights.push(30);
     }
+    this.collectTds();
   },
   computed:{
     tableDataArr2(){
@@ -111,11 +119,31 @@ export default {
       }
       return res;
     },
+    //真正要被选择的单元格
+    curSelectedCells(){
+      if(!this.curOriginalHoverCells||this.curOriginalHoverCells.length<1){
+        return [];
+      }else if(this.curOriginalHoverCells.length===1){
+        return [this.curOriginalHoverCells[0]];
+      }else{
+        const {minRowIndex,maxRowIndex,minColIndex,maxColIndex}=this.calculateTriblePoints(this.curOriginalHoverCells);
+        const res=[];
+        for(let i=minRowIndex;i<=maxRowIndex;i++){
+          for(let j=minColIndex;j<=maxColIndex;j++){
+            res.push({
+              rowIndex:i,
+              colIndex:j
+            });
+          }
+        }
+        return res;
+      }
+    }
   },
   watch:{
     tableDataArr2:{
-      handler(newVal,oldVal){
-        console.log(newVal);
+      handler(newVal){
+        this.collectTds();
       },
       deep:true,
     },
@@ -180,8 +208,123 @@ export default {
       })
       console.log("监听item2的改变",newValue,newItems);
     },
+    //管理选中的单元格
+    collectTds() {
+      // 遍历所有的行和列来收集td的引用
+      this.allCellRefs=[];
+      this.tableDataArr2.forEach((row, rowIndex) => {
+        row.forEach((cell, cellIndex) => {
+          const tdRef = `td_${rowIndex}_${cellIndex}`;
+          if (this.$refs[tdRef]) {
+            this.allCellRefs.push({
+              elem:this.$refs[tdRef][0],
+              rowIndex:rowIndex,
+              colIndex:cellIndex,
+            }); // 注意这里使用来获取DOM元素
+          }
+        });
+      });
+      console.log(this.allCellRefs,"收集的所有refs");
+    },
+    isSelectedCell(rowIndex,colIndex){
+      const matchedItem=this.curSelectedCells.find(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
+      return !!matchedItem;
+    },
+    pushCurSelectCell(rowIndex,colIndex){
+      const matchedItem=this.curOriginalHoverCells.find(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
+      if(!matchedItem){
+        this.curOriginalHoverCells.push({
+          rowIndex,
+          colIndex
+        });
+        console.log("push后的对象",this.curOriginalHoverCells);
+      }
+    },
+    popCurSelectCell(rowIndex,colIndex){
+      const matchedIndex=this.curOriginalHoverCells.findIndex(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
+      // console.log(matchedIndex,"移除的index",this.curOriginalHoverCells);
+      if(matchedIndex!==-1&&matchedIndex!==0){
+        const {minRowIndex,maxRowIndex,minColIndex,maxColIndex}=this.calculateTriblePoints(this.curOriginalHoverCells);
+        const newCurOriginalHoverCells=_.cloneDeep(this.curOriginalHoverCells).splice(matchedIndex,1);
+        const {minRowIndexNew,maxRowIndexNew,minColIndexNew,maxColIndexNew}=this.calculateTriblePoints(newCurOriginalHoverCells);
+        if(minRowIndex!==minRowIndexNew||maxRowIndex!==maxRowIndexNew||minColIndex!=minColIndexNew||maxColIndex!=maxColIndexNew){
+          this.curOriginalHoverCells.splice(matchedIndex,1);
+        }
+      }
+    },
+    calculateTriblePoints(curOriginalHoverCells){
+      const minRowIndex=curOriginalHoverCells.sort((x,y)=>{
+        return x.rowIndex<y.rowIndex?-1:x.rowIndex>y.rowIndex?1:0;
+      })[0].rowIndex;
+      const maxRowIndex=curOriginalHoverCells.sort((x,y)=>{
+        return x.rowIndex<y.rowIndex?1:x.rowIndex>y.rowIndex?-1:0;
+      })[0].rowIndex;
+      const minColIndex=curOriginalHoverCells.sort((x,y)=>{
+        return x.colIndex<y.colIndex?-1:x.colIndex>y.colIndex?1:0;
+      })[0].colIndex;
+      const maxColIndex=curOriginalHoverCells.sort((x,y)=>{
+        return x.colIndex<y.colIndex?1:x.colIndex>y.colIndex?-1:0;
+      })[0].colIndex;
+      return {
+        minRowIndex,
+        maxRowIndex,
+        minColIndex,
+        maxColIndex
+      }
+    },
+    handleMouseMove(event) {
+      // 获取鼠标坐标
+      const mouseX = event.clientX;
+      const mouseY = event.clientY;
+
+      // 遍历所有 td 元素来检查鼠标是否在其边界内
+      const tds = this.allCellRefs;
+      for (let td of tds) {
+        const rect = td.elem.getBoundingClientRect();
+        if (
+            mouseX >= rect.left &&
+            mouseX <= rect.right &&
+            mouseY >= rect.top &&
+            mouseY <= rect.bottom
+        ) {
+          // 如果鼠标在 td 边界内，则记录该 td 的位置
+          this.pushCurSelectCell(td.rowIndex,td.colIndex);
+        }else{
+          this.popCurSelectCell(td.rowIndex,td.colIndex);
+        }
+      }
+    },
+    //控制是否按下移动td能否拖拽单元格
+    tdMouseDown(){
+      if(event.target.nodeName==="TD"){
+        this.cellIsMouseMove=true;
+        this.pickedCellX=event.clientX;
+        this.pickedCellY=event.clientY;
+        event.stopPropagation(); // 阻止事件冒泡到draggable组件
+        event.preventDefault();  // 阻止默认行为，以防万一
+      }
+    },
+    tdMouseMove(){
+      if(this.cellIsMouseMove){
+        console.log("移动了",event.clientX,event.clientY);
+        this.handleMouseMove(event);
+        event.stopPropagation(); // 阻止事件冒泡到draggable组件
+        event.preventDefault();
+      }
+    },
+    tdMouseUp(){
+      if(this.cellIsMouseMove){
+        this.pickedCellX=0;
+        this.pickedCellY=0;
+      }
+      this.cellIsMouseMove=false;
+    },
     //和显示修改、配置单元格颜色有关的
-    showTableConfig(item){
+    showTableConfig(item,rowIndex,colIndex){
+      this.curOriginalHoverCells=[{
+        rowIndex,
+        colIndex
+      }];
       if(!item||item.length===0){
         return;
       }
@@ -204,7 +347,7 @@ export default {
       this.isResizingRow = true;
       this.resizingRowIndex = rowIndex;
       this.initialY = event.clientY;
-      // console.log(event);
+      console.log(this.initialY);
       document.addEventListener('mousemove', this.resizeRow);
       document.addEventListener('mouseup', this.stopResizingRow);
     },
@@ -281,6 +424,13 @@ th, td {
   border: 1px solid #ccc;
   text-align: left;
   position: relative;
+}
+td:hover{
+  cursor: cell;
+}
+td.selected-cell{
+  border: 1px solid #155bd4 !important;
+  background-color: rgba(30, 144, 255, 0.5) !important;
 }
 .no-border{
   border: none !important;

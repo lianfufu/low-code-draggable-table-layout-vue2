@@ -1,5 +1,5 @@
 <template>
-  <div class="widget-shape" @click.stop="setCurComponent">
+  <div class="widget-shape drag" @click.stop="setCurComponent">
     <div class="operate-bar">
       <div class="f14" v-show="isSelected" @click="doDeleteComponent">
         x
@@ -58,5 +58,8 @@ export default {
     background-color: #cccccc;
     z-index: 999;
   }
+}
+.drag:hover{
+  cursor: default;
 }
 </style>
