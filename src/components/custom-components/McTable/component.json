@@ -201,7 +201,7 @@
     "globalCellBgc": {
       "label": "单元格样式",
       "type": "color",
-      "value": "#000000"
+      "value": "#fff"
     },
     "model": {
       "label": "单元格内容",

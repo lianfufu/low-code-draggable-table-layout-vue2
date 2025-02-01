@@ -17,7 +17,7 @@
     </div>
     <div class="control-page">
       <div class="panel">
-        <div class="panel-content">
+        <div class="panel-content" @click="eventTargetSourceIsTD">
           <control-nest-widget :widgets.sync="widgets"/>
         </div>
       </div>
@@ -50,7 +50,8 @@ export default {
     return{
       curComponent:null,
       widgets:[],
-      curFields:null
+      curFields:null,
+      isClickedTD:false,
     }
   },
   provide(){
@@ -70,6 +71,10 @@ export default {
     },
     dropEnd(event){
       console.log(event);
+    },
+    eventTargetSourceIsTD(){
+      this.isClickedTD = event.target.nodeName === "TD";
+      console.log(this.isClickedTD,"冒泡出来了");
     }
   },
   watch:{
