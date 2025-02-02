@@ -17,7 +17,7 @@
     </div>
     <div class="control-page">
       <div class="panel">
-        <div class="panel-content" @click="eventTargetSourceIsTD">
+        <div class="panel-content" @mousedown="eventTargetSourceIsTD">
           <control-nest-widget :widgets.sync="widgets"/>
         </div>
       </div>
@@ -74,7 +74,7 @@ export default {
     },
     eventTargetSourceIsTD(){
       this.isClickedTD = event.target.nodeName === "TD";
-      console.log(this.isClickedTD,"冒泡出来了");
+      console.log(this.isClickedTD,"冒泡出来了down");
     }
   },
   watch:{

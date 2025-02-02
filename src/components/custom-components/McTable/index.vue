@@ -6,9 +6,11 @@
  * @LastEditTime: 2022-01-01 09:13:02
 -->
 <template>
-  <div class="wrap" :style="{paddingBottom:padding+'px',paddingTop:padding+'px'}">
-    <div style="height: 0;opacity: 0">{{isClickedTD}}</div>
-    <table class="table" :border="isShowBorder?1:0">
+  <div class="wrap" :style="{paddingBottom:padding+'px',paddingTop:padding+'px'}" @click="sourceTargetClickIsTD">
+<!--    <div style="opacity: 0;height: 0">{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>-->
+    <div>{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>
+    <cell-operation-bar v-show="isShowOperationBar&&writableIsClickTD" :positionVal="operationBarPosition"/>
+    <table ref="mytable" class="table" :border="isShowBorder?1:0">
       <tbody>
         <tr v-for="(item,index) in tableDataArr2" :style="{height:rowHeights[index]+'px'}" :key="index">
           <td :data-rowIndex="index" :data-colIndex="index2" :class="[isShowBorder?'':'no-border',isSelectedCell(index,index2)?'selected-cell':'']" v-for="(item2,index2) in item" :key="index2" @mousedown="tdMouseDown" @mousemove="tdMouseMove" @mouseup="tdMouseUp" :valign="model" @click.stop="showTableConfig(item2,index,index2)" class="resizable-cell flex-td" :style="getCellStyle(columnWidths,item2,index2)">
@@ -58,6 +60,12 @@ export default {
       selectedMaxColIndex:Number.NaN,
       pickedRowIndex:Number.NaN,//按下第一次鼠标时的行索引
       pickedColIndex:Number.NaN,//按下第一次鼠标时的列索引
+      operationBarPosition:{
+        left:0,
+        top:0,
+      },
+      isShowOperationBar:false,
+      writableIsClickTD:false,//为了控制单元格操作栏的显隐
     }
   },
   inject:["control"],
@@ -125,13 +133,18 @@ export default {
     },
     isClickedTD(){
       if(!this.control.curComponent){
+        console.log("这里curComponent不存在才给的false");
         return false;
       }
-      if(!this.control.curComponent.component){
+      if(!this.control.curComponent.component||this.control.curComponent.component==="McTable"){
         return true;//因为设定过当点击td，这个时候没有设置component属性
       }
+      console.log("其他情况才给的false",this.control.curComponent,this.control.curComponent.component==="McTable");
       return false;
-    }
+    },
+    // isShowOperationBarRealBind(){
+    //   if(!this.isClickedTD&&this.cellIsMouseMove)
+    // }
   },
   watch:{
     children:{
@@ -175,9 +188,20 @@ export default {
         console.log(value);
         if(!value){
           this.clearCurSelectedCells();
+          console.log(value,"最后没有执行清空操作？");
         }
       },
-      deep:true//迷惑的地方
+      deep:true,//迷惑的地方
+    },
+    isShowOperationBar:{
+      handler(value){
+        console.log(value);
+        if(!value&&!this.isClickedTD&&this.writableIsClickTD){
+          this.clearCurSelectedCells();//如果不显示bar，则同时要清空所有选择的单元格。是一种强绑定关系
+          console.log(value,"最后没有执行清空操作？");
+        }
+      },
+      deep:true,//迷惑的地方
     },
     tableDataArr2:{
       handler(value){
@@ -239,6 +263,8 @@ export default {
       this.selectedMinRowIndex=Number.NaN;
       this.pickedColIndex=Number.NaN;
       this.pickedRowIndex=Number.NaN;
+      console.log("执行了清理单元格所有的，为何？");
+      this.isShowOperationBar=false;
     },
     pushCurSelectCell(rowIndex,colIndex){
       if(Number.isNaN(this.selectedMinRowIndex)){
@@ -270,6 +296,7 @@ export default {
     tdMouseDown(){
       if(event.target.nodeName==="TD"){
         this.cellIsMouseMove=true;
+        this.isShowOperationBar=false;
         this.pickedCellX=event.clientX;
         this.pickedCellY=event.clientY;
         event.stopPropagation(); // 阻止事件冒泡到draggable组件
@@ -284,12 +311,32 @@ export default {
         event.preventDefault();
       }
     },
+    //计算单元格操作柄的位置
+    calculateCellOperationBarLocation(event){
+      const rect = this.$refs.mytable.getBoundingClientRect();
+      const refLeft=rect.x;
+      const refTop=rect.y-this.padding;
+      this.operationBarPosition.left=(event.clientX-refLeft+50)+'px';
+      this.operationBarPosition.top=(event.clientY-refTop-50)+'px';
+      console.log(this.operationBarPosition);
+      this.isShowOperationBar=true;
+    },
+    sourceTargetClickIsTD(){
+      const isClickTDViewFromWrapperDiv=  event.target.nodeName === "TD"||event.target.nodeName === "TR"||event.target.nodeName === "TBODY";
+      if(!isClickTDViewFromWrapperDiv){
+        this.isShowOperationBar=false;
+        console.log("点击了target的类型为",event.target);
+      }
+    },
     tdMouseUp(){
       if(this.cellIsMouseMove){
         this.pickedCellX=0;
         this.pickedCellY=0;
+        // console.log(this.writableIsClickTD);
       }
       this.cellIsMouseMove=false;
+      this.writableIsClickTD=true;
+      this.calculateCellOperationBarLocation(event);
     },
     //和显示修改、配置单元格颜色有关的
     showTableConfig(item,rowIndex,colIndex){
@@ -386,6 +433,7 @@ export default {
 
 <style lang="scss" scoped>
 .wrap {
+  position: relative;
   .table{
     width: 100%;
     table-layout: fixed;
@@ -427,7 +475,7 @@ td.selected-cell{
   position: absolute;
   bottom: 0;
   left: 0;
-  z-index: 999;
+  z-index: 998;
 }
 
 .row-resizer:hover {
@@ -444,7 +492,7 @@ td.selected-cell{
   //top: -2000px;
   right: 0;
   bottom: 0;
-  z-index: 999;
+  z-index: 998;
 }
 
 .col-resizer:hover {

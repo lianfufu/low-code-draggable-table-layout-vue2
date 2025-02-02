@@ -56,7 +56,7 @@ export default {
     top:0;
     right:-35px;
     background-color: #cccccc;
-    z-index: 999;
+    z-index: 996;
   }
 }
 .drag:hover{
