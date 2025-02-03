@@ -36,9 +36,4 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-//.cnt{
-//  .container{
-//    border: 1px solid #13ce66;
-//  }
-//}
 </style>

@@ -1,20 +1,20 @@
 <template>
-  <div class="cell-operation-bar" :style="positionVal">
+  <div class="cell-operation-bar" :style="positionVal" @click="myIsClickedAtOperationBar=true">
     <div class="merge-cell">
-      <el-button size="mini">合并单元格</el-button>
+      <el-button size="mini" @click="sendMergeRowOrColumn">合并单元格</el-button>
     </div>
     <div class="split-cell">
       <el-button size="mini" @click="isShowPop=!isShowPop">拆分单元格</el-button>
       <div class="popover-split-box" v-show="isShowPop">
         <div class="count">
           <span>行数：</span>
-          <el-input-number size="mini" v-model="rowCount"/>
+          <el-input-number size="mini" v-model="myRowCount"/>
         </div>
         <div class="count">
           <span>列数：</span>
-          <el-input-number size="mini" v-model="colCount"/>
+          <el-input-number size="mini" v-model="myColCount"/>
         </div>
-        <el-button size="mini" type="primary">确认</el-button>
+        <el-button size="mini" type="primary" @click="sendCurRowAndColSplitCountInfo">确认</el-button>
       </div>
     </div>
     <div class="delete-row">
@@ -32,10 +32,12 @@ export default {
   data(){
     return {
       isShowPop:false,
-      rowCount:1,
-      colCount:1
+      myRowCount:1,
+      myColCount:1,
+      myIsClickedAtOperationBar:false,
     }
   },
+  emits:["updateCurCellSplitInfo","doMergeCells"],
   props:{
     positionVal:{
       type:Object,
@@ -43,6 +45,31 @@ export default {
         left:0,
         top:0
       })
+    },
+    isClickedAtOperationBar:{
+      type:Boolean,
+      default:false,
+    },
+  },
+  watch:{
+    isClickedAtOperationBar:{
+      handler(value){
+        this.myIsClickedAtOperationBar=value;
+      },
+      immediate:true,
+    },
+    myIsClickedAtOperationBar:{
+      handler(value){
+        this.$emit("update:isClickedAtOperationBar",value);
+      }
+    }
+  },
+  methods:{
+    sendCurRowAndColSplitCountInfo(){
+      this.$emit("updateCurCellSplitInfo",this.myRowCount,this.myColCount);
+    },
+    sendMergeRowOrColumn(){
+      this.$emit("doMergeCells",this.myRowCount,this.myColCount);
     }
   }
 }

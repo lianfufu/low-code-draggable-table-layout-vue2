@@ -14,35 +14,8 @@
       },
       "rowIndex": 0,
       "colIndex": 0,
-      "cellFields": {
-        "contentBgc": {
-          "label": "背景色",
-          "type": "color",
-          "value": "#fff"
-        },
-        "padding": {
-          "label": "内边距",
-          "type": "number",
-          "value": 3
-        }
-      },
-      "cellFieldsVal": {
-        "contentBgc": "#fff",
-        "padding": 3
-      }
-    },
-    {
-      "component": "McTitle",
-      "name": "标题",
-      "icon": "icon-biaotizujian",
-      "title": "defaultText",
-      "model": "left",
-      "styles": {
-        "titleSize": 16,
-        "titleColor": "#333333"
-      },
-      "rowIndex": 0,
-      "colIndex": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
       "cellFields": {
         "contentBgc": {
           "label": "背景色",
@@ -72,6 +45,8 @@
       },
       "rowIndex": 0,
       "colIndex": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "cellFields": {
         "contentBgc": {
           "label": "背景色",
@@ -101,6 +76,8 @@
       },
       "rowIndex": 1,
       "colIndex": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
       "cellFields": {
         "contentBgc": {
           "label": "背景色",
@@ -130,6 +107,8 @@
       },
       "rowIndex": 1,
       "colIndex": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
       "cellFields": {
         "contentBgc": {
           "label": "背景色",
@@ -159,6 +138,8 @@
       },
       "rowIndex": 1,
       "colIndex": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "cellFields": {
         "contentBgc": {
           "label": "背景色",

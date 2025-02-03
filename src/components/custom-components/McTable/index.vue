@@ -9,13 +9,13 @@
   <div class="wrap" :style="{paddingBottom:padding+'px',paddingTop:padding+'px'}" @click="sourceTargetClickIsTD">
 <!--    <div style="opacity: 0;height: 0">{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>-->
     <div>{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>
-    <cell-operation-bar v-show="isShowOperationBar&&writableIsClickTD" :positionVal="operationBarPosition"/>
+    <cell-operation-bar v-show="isClickedAtOperationBar||(isShowOperationBar&&writableIsClickTD)" @updateCurCellSplitInfo="doSplitRowOrColumn" @doMergeCells="doMergeRowOrColumn" :isClickedAtOperationBar.sync="isClickedAtOperationBar" :positionVal="operationBarPosition"/>
     <table ref="mytable" class="table" :border="isShowBorder?1:0">
       <tbody>
         <tr v-for="(item,index) in tableDataArr2" :style="{height:rowHeights[index]+'px'}" :key="index">
-          <td :data-rowIndex="index" :data-colIndex="index2" :class="[isShowBorder?'':'no-border',isSelectedCell(index,index2)?'selected-cell':'']" v-for="(item2,index2) in item" :key="index2" @mousedown="tdMouseDown" @mousemove="tdMouseMove" @mouseup="tdMouseUp" :valign="model" @click.stop="showTableConfig(item2,index,index2)" class="resizable-cell flex-td" :style="getCellStyle(columnWidths,item2,index2)">
+          <td :data-rowIndex="index" v-if="item2.length>0" :colspan="item2[0]?item2[0].colSpan:1" :rowspan="item2[0]?item2[0].rowSpan:1" :data-colIndex="index2" :class="[isShowBorder?'':'no-border',isSelectedCell(index,index2)?'selected-cell':'']" v-for="(item2,index2) in item" :key="index2" @mousedown="tdMouseDown" @mousemove="tdMouseMove" @mouseup="tdMouseUp" :valign="model" @click.stop="showTableConfig(item2,index,index2)" class="resizable-cell flex-td" :style="getCellStyle(columnWidths,item2,index2)">
             <McTableItemContainer>
-              <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgetsForDel(index,index2)" @update:widgets="doUpdateWidgets" :widgets.sync="item2"/>
+              <ControlNestWidget :cellColSpan="item2[0]?item2[0].colSpan:1" :cellRowSpan="item2[0]?item2[0].rowSpan:1" :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgetsForDel(index,index2)" @update:widgets="doUpdateWidgets" :widgets.sync="item2"/>
             </McTableItemContainer>
             <div class="row-resizer" @drag.stop @dragend.stop @dragstart.stop @mousedown="startResizingRow(index)"></div>
             <div
@@ -66,6 +66,7 @@ export default {
       },
       isShowOperationBar:false,
       writableIsClickTD:false,//为了控制单元格操作栏的显隐
+      isClickedAtOperationBar:false,//判断是否点击了操作柄内部的元素
     }
   },
   inject:["control"],
@@ -112,9 +113,18 @@ export default {
     tableDataArr2(){
       console.log("删除后重新计算tableDataArr2");
       const res=[];
+      const tdRowColIndexToRemove=[];
       for (let i=0;i<this.rowCount;i++){
         res[i]=[];
         for (let j=0;j<this.colCount;j++){
+          //判断当前遍历的i，j是否属于被覆盖的单元格索引
+          const matched=tdRowColIndexToRemove.findIndex(item=>item.rowIndex===i&&item.colIndex===j);
+          if(matched!==-1){
+            res[i][j]=[];
+            tdRowColIndexToRemove.splice(matched,1);
+            continue;
+          }
+          //获取component.json中预定义的匹配rowindex和colindex的项
           const matchedChild=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j);
           if(matchedChild&&matchedChild.length>0){
             if(matchedChild.length===1){
@@ -124,11 +134,39 @@ export default {
             }else{
               res[i][j]=matchedChild;
             }
+            const rowSpan=matchedChild[0].rowSpan;//认为多个同index的单元格的rowSpan数据一致
+            const colSpan=matchedChild[0].colSpan;//认为多个同index的单元格的colSpan数据一致
+            if(rowSpan!==1||colSpan!==1){
+              for(let k=i;k<rowSpan+i;k++){
+                for(let l=j;l<colSpan+j;l++){
+                  if(k===i&&l===j){
+                    continue;
+                  }
+                  tdRowColIndexToRemove.push({
+                    rowIndex:k,
+                    colIndex:l
+                  });
+                }
+              }
+            }
           }else{
-            res[i][j]=[];
+            res[i][j]=[{
+              id:this.$getRandomCode(8),
+              component:"MCTextContainer",
+              rowIndex: i,
+              colIndex: j,
+              rowSpan: 1,
+              colSpan: 1,
+            }];
           }
         }
       }
+      // tdRowColIndexToRemove.forEach(toRemoveItem=>{
+      //   const matched=this.tabData.findIndex(item=>item.rowIndex===toRemoveItem.rowIndex&&item.colIndex===toRemoveItem.colIndex);
+      //   if(matched!==-1){
+      //     this.tabData.splice(matched,1);
+      //   }
+      // })
       return res;
     },
     isClickedTD(){
@@ -150,6 +188,13 @@ export default {
     children:{
       handler(value){
         this.tabData=value;
+      },
+      immediate:true,
+      deep:true
+    },
+    tableDataArr2:{
+      handler(value){
+        console.log(value,"tableDataArr2");
       },
       immediate:true,
       deep:true
@@ -196,19 +241,16 @@ export default {
     isShowOperationBar:{
       handler(value){
         console.log(value);
-        if(!value&&!this.isClickedTD&&this.writableIsClickTD){
-          this.clearCurSelectedCells();//如果不显示bar，则同时要清空所有选择的单元格。是一种强绑定关系
-          console.log(value,"最后没有执行清空操作？");
+        // if(!value&&!this.isClickedTD&&this.writableIsClickTD){
+        //   this.clearCurSelectedCells();//如果不显示bar，则同时要清空所有选择的单元格。是一种强绑定关系
+        //   console.log(value,"最后没有执行清空操作？");
+        // }
+        if(!value&&!this.isClickedAtOperationBar){
+          this.clearCurSelectedCells();
         }
       },
       deep:true,//迷惑的地方
     },
-    tableDataArr2:{
-      handler(value){
-        console.log("tableDataArr2改变了",value);
-      },
-      deep:true
-    }
   },
   methods:{
     getCellStyle(columnWidths,list,index){
@@ -229,11 +271,27 @@ export default {
     doUpdateWidgetsForDel(rowIndex,colIndex,delValue){
       const target=this.tabData.findIndex(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
       if(target!==-1){
+        // this.tabData.splice(target,1);//初始版本写法
+        //下面是优化，针对当删除到最后一个内容时，并不真正删除，而是将其变成MCTextContainer
+        const allMatchedItems=this.tabData.filter(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
+        const colSpan=allMatchedItems[0].colSpan;
+        const rowSpan=allMatchedItems[0].rowSpan;
         this.tabData.splice(target,1);
+        if(allMatchedItems.length===1){
+          console.log(allMatchedItems,"进来了计算allMatchedItems");
+          this.tabData.push({
+            id:this.$getRandomCode(8),
+            component:"MCTextContainer",
+            rowIndex: rowIndex,
+            colIndex: colIndex,
+            rowSpan: rowSpan,
+            colSpan: colSpan,
+          });
+        }
       }
     },
     doUpdateWidgets(newValue){
-      const newItems=[];
+      const newItems=[];//加入新对象的逻辑
       if(newValue&&Array.isArray(newValue)){
         for (const item of newValue) {
           if(item.id){
@@ -324,8 +382,15 @@ export default {
     sourceTargetClickIsTD(){
       const isClickTDViewFromWrapperDiv=  event.target.nodeName === "TD"||event.target.nodeName === "TR"||event.target.nodeName === "TBODY";
       if(!isClickTDViewFromWrapperDiv){
-        this.isShowOperationBar=false;
-        console.log("点击了target的类型为",event.target);
+        const isFromChild = event.target.closest('.cell-operation-bar');
+        if(!isFromChild){
+          this.isShowOperationBar=false;
+          this.isClickedAtOperationBar=false;
+          console.log("点击了target的类型为",event.target);
+        }else{
+          console.log("dianle来自cell-operation-bar类");
+        }
+
       }
     },
     tdMouseUp(){
@@ -337,6 +402,41 @@ export default {
       this.cellIsMouseMove=false;
       this.writableIsClickTD=true;
       this.calculateCellOperationBarLocation(event);
+    },
+    //拆分合并、删除行、删除列相关的
+    doSplitRowOrColumn(splitRowCount,splitColCount){
+      console.log(splitRowCount,splitColCount,"拆分行列");
+    },
+    //合并单元格
+    doMergeRowOrColumn(){
+      console.log("合并单元格");
+      if(this.selectedMaxColIndex===this.selectedMinColIndex&&this.selectedMaxRowIndex===this.selectedMinRowIndex){
+        return;
+      }
+      const collectedAllRes=[];
+      const mergeRowSpan=this.selectedMaxRowIndex-this.selectedMinRowIndex+1;
+      const mergeColSpan=this.selectedMaxColIndex-this.selectedMinColIndex+1;
+      const mergeRowIndex=this.selectedMinRowIndex;
+      const mergeColIndex=this.selectedMinColIndex;
+
+      for(let i=this.selectedMinRowIndex;i<=this.selectedMaxRowIndex;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
+        for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
+          // const curMatchedItems=this.
+          //todo 已经合并过的单元格，现在不支持嵌套合并。
+          //todo 合并导致的行数减少，需要更新后续数据。
+
+          //搜集获取此范围内的全部cells。是从tableData中进行搜寻。如果被搜寻的对象是跨单元格的，即已经合并后的对象，这个时候的交叉碰撞逻辑是，如果左上角的角点等于当前的i和j就被收集进来
+          const curMatchedItems=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j);
+          if(curMatchedItems&&curMatchedItems.length>0){
+            curMatchedItems.forEach(item=>{
+              item.rowIndex=mergeRowIndex;
+              item.colIndex=mergeColIndex;
+              item.colSpan=mergeColSpan;
+              item.rowSpan=mergeRowSpan;
+            });
+          }
+        }
+      }
     },
     //和显示修改、配置单元格颜色有关的
     showTableConfig(item,rowIndex,colIndex){
