@@ -1,20 +1,20 @@
 <template>
   <div class="cell-operation-bar" :style="positionVal" @click="myIsClickedAtOperationBar=true">
     <div class="merge-cell">
-      <el-button size="mini" @click="sendMergeRowOrColumn">合并单元格</el-button>
+      <el-button size="mini">合并单元格</el-button>
     </div>
     <div class="split-cell">
-      <el-button size="mini" @click="isShowPop=!isShowPop">拆分单元格</el-button>
-      <div class="popover-split-box" v-show="isShowPop">
+      <el-button size="mini" @click="myIsShowPop=!myIsShowPop">拆分单元格</el-button>
+      <div class="popover-split-box" v-show="myIsShowPop">
         <div class="count">
           <span>行数：</span>
-          <el-input-number size="mini" v-model="myRowCount"/>
+          <el-input-number size="mini" v-model="rowCount"/>
         </div>
         <div class="count">
           <span>列数：</span>
-          <el-input-number size="mini" v-model="myColCount"/>
+          <el-input-number size="mini" v-model="colCount"/>
         </div>
-        <el-button size="mini" type="primary" @click="sendCurRowAndColSplitCountInfo">确认</el-button>
+        <el-button size="mini" type="primary">确认</el-button>
       </div>
     </div>
     <div class="delete-row">
@@ -31,13 +31,12 @@ export default {
   name: "CellOperationBar",
   data(){
     return {
-      isShowPop:false,
-      myRowCount:1,
-      myColCount:1,
+      rowCount:1,
+      colCount:1,
       myIsClickedAtOperationBar:false,
+      myIsShowPop:false,
     }
   },
-  emits:["updateCurCellSplitInfo","doMergeCells"],
   props:{
     positionVal:{
       type:Object,
@@ -50,8 +49,23 @@ export default {
       type:Boolean,
       default:false,
     },
+    isShowPop:{
+      type:Boolean,
+      default:false,
+    }
   },
   watch:{
+    isShowPop:{
+      handler(value){
+        this.myIsShowPop=value;
+      },
+      immediate:true,
+    },
+    myIsShowPop:{
+      handler(value){
+        this.$emit("update:isShowPop",value);
+      }
+    },
     isClickedAtOperationBar:{
       handler(value){
         this.myIsClickedAtOperationBar=value;
@@ -62,14 +76,6 @@ export default {
       handler(value){
         this.$emit("update:isClickedAtOperationBar",value);
       }
-    }
-  },
-  methods:{
-    sendCurRowAndColSplitCountInfo(){
-      this.$emit("updateCurCellSplitInfo",this.myRowCount,this.myColCount);
-    },
-    sendMergeRowOrColumn(){
-      this.$emit("doMergeCells",this.myRowCount,this.myColCount);
     }
   }
 }

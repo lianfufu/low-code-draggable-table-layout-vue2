@@ -8,11 +8,11 @@
         :animation="500"
         :sort="true"
         :group="{name:'xtwangzi'}">
-      <WidgetShape v-for="(item,key,index) in list" v-if="item.component!=='MCTextContainer'" :cur-component="item" :key="item.id" v-bind="item" @deleteWidget="deleteWidget">
-        <component v-if="item.component!=='MCTable'&&item.component!=='MCTextContainer'" :is="item.component" v-bind="item">
+      <WidgetShape v-for="(item,key,index) in list" :cur-component="item" :key="item.id" v-bind="item" @deleteWidget="deleteWidget">
+        <component v-if="item.component!=='MCTable'" :is="item.component" v-bind="item">
           <ControlNestWidget :isWidget="true" :widgets.sync="item.children"></ControlNestWidget>
         </component>
-        <component v-else-if="item.component==='MCTable'" :is="item.component" v-bind="item" :children.sync="item.children"/>
+        <component v-else :is="item.component" v-bind="item" :children.sync="item.children"/>
       </WidgetShape>
     </draggable>
 </template>
@@ -39,14 +39,6 @@ export default {
       type:Number,
       default:Number.NaN
     },
-    cellRowSpan:{
-      type:Number,
-      default:Number.NaN
-    },
-    cellColSpan:{
-      type:Number,
-      default:Number.NaN
-    },
   },
   inject:["control"],
   data(){
@@ -64,13 +56,11 @@ export default {
     },
     list:{
       handler(value){
-        //当数据是为了列表进行服务的，拖进来新的对象的时候，记录要拖入的目标单元格
+        //当数据是为了列表进行服务的
         if(!Number.isNaN(this.cellColIndex)&&!Number.isNaN(this.cellRowIndex)){
           value.forEach(item=>{
             item.rowIndex=this.cellRowIndex;
             item.colIndex=this.cellColIndex;
-            item.rowSpan=this.cellRowSpan;
-            item.colSpan=this.cellColSpan;
             if(!item.cellFields){
               item.cellFields={
                 "contentBgc": {
