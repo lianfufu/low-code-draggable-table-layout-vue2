@@ -1,24 +1,24 @@
 <template>
   <div class="cell-operation-bar" :style="positionVal" @click="myIsClickedAtOperationBar=true">
     <div class="merge-cell">
-      <el-button size="mini">合并单元格</el-button>
+      <el-button size="mini" @click="sendMergeRowOrColumn">合并单元格</el-button>
     </div>
     <div class="split-cell">
-      <el-button size="mini" @click="myIsShowPop=!myIsShowPop">拆分单元格</el-button>
-      <div class="popover-split-box" v-show="myIsShowPop">
+      <el-button size="mini" @click="isShowPop=!isShowPop">拆分单元格</el-button>
+      <div class="popover-split-box" v-show="isShowPop">
         <div class="count">
           <span>行数：</span>
-          <el-input-number size="mini" v-model="rowCount"/>
+          <el-input-number size="mini" v-model="myRowCount"/>
         </div>
         <div class="count">
           <span>列数：</span>
-          <el-input-number size="mini" v-model="colCount"/>
+          <el-input-number size="mini" v-model="myColCount"/>
         </div>
-        <el-button size="mini" type="primary">确认</el-button>
+        <el-button size="mini" type="primary" @click="sendCurRowAndColSplitCountInfo">确认</el-button>
       </div>
     </div>
     <div class="delete-row">
-      <el-button size="mini">删除所在行</el-button>
+      <el-button size="mini" @click="deleteLocateRow">删除所在行</el-button>
     </div>
     <div class="delete-col">
       <el-button size="mini">删除所在列</el-button>
@@ -31,12 +31,13 @@ export default {
   name: "CellOperationBar",
   data(){
     return {
-      rowCount:1,
-      colCount:1,
+      isShowPop:false,
+      myRowCount:1,
+      myColCount:1,
       myIsClickedAtOperationBar:false,
-      myIsShowPop:false,
     }
   },
+  emits:["updateCurCellSplitInfo","doMergeCells","doDeleteRow"],
   props:{
     positionVal:{
       type:Object,
@@ -49,23 +50,8 @@ export default {
       type:Boolean,
       default:false,
     },
-    isShowPop:{
-      type:Boolean,
-      default:false,
-    }
   },
   watch:{
-    isShowPop:{
-      handler(value){
-        this.myIsShowPop=value;
-      },
-      immediate:true,
-    },
-    myIsShowPop:{
-      handler(value){
-        this.$emit("update:isShowPop",value);
-      }
-    },
     isClickedAtOperationBar:{
       handler(value){
         this.myIsClickedAtOperationBar=value;
@@ -76,6 +62,17 @@ export default {
       handler(value){
         this.$emit("update:isClickedAtOperationBar",value);
       }
+    },
+  },
+  methods:{
+    sendCurRowAndColSplitCountInfo(){
+      this.$emit("updateCurCellSplitInfo",this.myRowCount,this.myColCount);
+    },
+    sendMergeRowOrColumn(){
+      this.$emit("doMergeCells",this.myRowCount,this.myColCount);
+    },
+    deleteLocateRow(){
+      this.$emit("doDeleteRow");
     }
   }
 }

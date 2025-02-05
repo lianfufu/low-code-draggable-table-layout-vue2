@@ -9,13 +9,13 @@
   <div class="wrap" :style="{paddingBottom:padding+'px',paddingTop:padding+'px'}" @click="sourceTargetClickIsTD">
 <!--    <div style="opacity: 0;height: 0">{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>-->
     <div>{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>
-    <cell-operation-bar :isShowPop.sync="isShowPop" :isClickedAtOperationBar.sync="isClickedAtOperationBar" v-show="isShowOperationBarRealBind" :positionVal="operationBarPosition"/>
+    <cell-operation-bar v-show="isClickedAtOperationBar||(isShowOperationBar&&writableIsClickTD)" @updateCurCellSplitInfo="doSplitRowOrColumn" @doMergeCells="doMergeRowOrColumn" @doDeleteRow="doDeleteLocatedRow" :isClickedAtOperationBar.sync="isClickedAtOperationBar" :positionVal="operationBarPosition"/>
     <table ref="mytable" class="table" :border="isShowBorder?1:0">
       <tbody>
         <tr v-for="(item,index) in tableDataArr2" :style="{height:rowHeights[index]+'px'}" :key="index">
-          <td :data-rowIndex="index" :data-colIndex="index2" :class="[isShowBorder?'':'no-border',isSelectedCell(index,index2)?'selected-cell':'']" v-for="(item2,index2) in item" :key="index2" @mousedown="tdMouseDown" @mousemove="tdMouseMove" @mouseup="tdMouseUp" :valign="model" @click.stop="showTableConfig(item2,index,index2)" class="resizable-cell flex-td" :style="getCellStyle(columnWidths,item2,index2)">
+          <td :data-rowIndex="index" :data-colIndex="index2" :data-colSpan="item2[0]?item2[0].colSpan:1" :data-rowSpan="item2[0]?item2[0].rowSpan:1"  v-if="item2.length>0" :colspan="item2[0]?item2[0].colSpan:1" :rowspan="item2[0]?item2[0].rowSpan:1" :class="[isShowBorder?'':'no-border',isSelectedCell(index,index2)?'selected-cell':'']" v-for="(item2,index2) in item" :key="index2" @mousedown="tdMouseDown" @mousemove="tdMouseMove" @mouseup="tdMouseUp" :valign="model" @click.stop="showTableConfig(item2,index,index2,item2[0]?item2[0].rowSpan:1,item2[0]?item2[0].colSpan:1)" class="resizable-cell flex-td" :style="getCellStyle(columnWidths,item2,index2)">
             <McTableItemContainer>
-              <ControlNestWidget :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgetsForDel(index,index2)" @update:widgets="doUpdateWidgets" :widgets.sync="item2"/>
+              <ControlNestWidget :cellColSpan="item2[0]?item2[0].colSpan:1" :cellRowSpan="item2[0]?item2[0].rowSpan:1" :cell-col-index="index2" :cell-row-index="index" :isWidget="true" @updateTableChildData="doUpdateWidgetsForDel(index,index2)" @update:widgets="doUpdateWidgets" :widgets.sync="item2"/>
             </McTableItemContainer>
             <div class="row-resizer" @drag.stop @dragend.stop @dragstart.stop @mousedown="startResizingRow(index)"></div>
             <div
@@ -44,6 +44,8 @@ export default {
       tabData:[],
       columnWidths:[],
       rowHeights:[],
+      myColCount:3,
+      myRowCount:2,
       isResizingRow: false,
       isResizingColumn: false,
       resizingRowIndex: null,
@@ -60,6 +62,8 @@ export default {
       selectedMaxColIndex:Number.NaN,
       pickedRowIndex:Number.NaN,//按下第一次鼠标时的行索引
       pickedColIndex:Number.NaN,//按下第一次鼠标时的列索引
+      pickedRowSpan:Number.NaN,//按下第一次鼠标时的行索引
+      pickedColSpan:Number.NaN,//按下第一次鼠标时的列索引
       operationBarPosition:{
         left:0,
         top:0,
@@ -67,7 +71,6 @@ export default {
       isShowOperationBar:false,
       writableIsClickTD:false,//为了控制单元格操作栏的显隐
       isClickedAtOperationBar:false,//判断是否点击了操作柄内部的元素
-      isShowPop:false,//控制是否显示拆分的弹出框
     }
   },
   inject:["control"],
@@ -114,9 +117,18 @@ export default {
     tableDataArr2(){
       console.log("删除后重新计算tableDataArr2");
       const res=[];
+      const tdRowColIndexToRemove=[];
       for (let i=0;i<this.rowCount;i++){
         res[i]=[];
         for (let j=0;j<this.colCount;j++){
+          //判断当前遍历的i，j是否属于被覆盖的单元格索引
+          const matched=tdRowColIndexToRemove.findIndex(item=>item.rowIndex===i&&item.colIndex===j);
+          if(matched!==-1){
+            res[i][j]=[];
+            tdRowColIndexToRemove.splice(matched,1);
+            continue;
+          }
+          //获取component.json中预定义的匹配rowindex和colindex的项
           const matchedChild=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j);
           if(matchedChild&&matchedChild.length>0){
             if(matchedChild.length===1){
@@ -126,11 +138,39 @@ export default {
             }else{
               res[i][j]=matchedChild;
             }
+            const rowSpan=matchedChild[0].rowSpan;//认为多个同index的单元格的rowSpan数据一致
+            const colSpan=matchedChild[0].colSpan;//认为多个同index的单元格的colSpan数据一致
+            if(rowSpan!==1||colSpan!==1){
+              for(let k=i;k<rowSpan+i;k++){
+                for(let l=j;l<colSpan+j;l++){
+                  if(k===i&&l===j){
+                    continue;
+                  }
+                  tdRowColIndexToRemove.push({
+                    rowIndex:k,
+                    colIndex:l
+                  });
+                }
+              }
+            }
           }else{
-            res[i][j]=[];
+            res[i][j]=[{
+              id:this.$getRandomCode(8),
+              component:"MCTextContainer",
+              rowIndex: i,
+              colIndex: j,
+              rowSpan: 1,
+              colSpan: 1,
+            }];
           }
         }
       }
+      // tdRowColIndexToRemove.forEach(toRemoveItem=>{
+      //   const matched=this.tabData.findIndex(item=>item.rowIndex===toRemoveItem.rowIndex&&item.colIndex===toRemoveItem.colIndex);
+      //   if(matched!==-1){
+      //     this.tabData.splice(matched,1);
+      //   }
+      // })
       return res;
     },
     isClickedTD(){
@@ -138,31 +178,40 @@ export default {
         console.log("这里curComponent不存在才给的false");
         return false;
       }
-      if(!this.control.curComponent.component||this.control.curComponent.component==="McTable"){
+      if(!this.control.curComponent.component||this.control.curComponent.component==="McTable"||this.control.curComponent.component==="MCTextContainer"){
         return true;//因为设定过当点击td，这个时候没有设置component属性
       }
       console.log("其他情况才给的false",this.control.curComponent,this.control.curComponent.component==="McTable");
       return false;
     },
-    isShowOperationBarRealBind(){
-      return this.isClickedAtOperationBar||(this.isShowOperationBar&&this.writableIsClickTD);
-    }
+    // isShowOperationBarRealBind(){
+    //   if(!this.isClickedTD&&this.cellIsMouseMove)
+    // }
   },
   watch:{
-    isShowOperationBarRealBind:{
+    myRowCount:{
       handler(value){
-        console.log(value,"isShowOperationBarRealBind");
-        this.isShowPop=false;
-        // if(value){
-        //   this.isShowPop=false;
-        // }
+        this.$emit("update:rowCount",value);
+        console.log("发送了行数数据");
       },
       immediate:true,
-      deep:true
+    },
+    myColCount:{
+      handler(value){
+        this.$emit("update:colCount",value);
+      },
+      immediate:true,
     },
     children:{
       handler(value){
         this.tabData=value;
+      },
+      immediate:true,
+      deep:true
+    },
+    tableDataArr2:{
+      handler(value){
+        console.log(value,"tableDataArr2");
       },
       immediate:true,
       deep:true
@@ -176,6 +225,7 @@ export default {
     },
     colCount:{
       handler(value){
+        this.myColCount=value;
         // 只要修改了列的个数，先前的列的宽度设置都将被重置
         this.columnWidths=[];
         for(let i=0;i<this.colCount;i++){
@@ -185,6 +235,7 @@ export default {
     },
     rowCount:{
       handler(value,oldValue){
+        this.myRowCount=value;
         if(value>oldValue){//原有的高度值不要被改变
           for(let i=oldValue;i<this.rowCount;i++){
             this.rowHeights.push(40);
@@ -209,19 +260,16 @@ export default {
     isShowOperationBar:{
       handler(value){
         console.log(value);
-        if(!value&&!this.isClickedTD&&this.writableIsClickTD){
-          this.clearCurSelectedCells();//如果不显示bar，则同时要清空所有选择的单元格。是一种强绑定关系
-          console.log(value,"最后没有执行清空操作？");
+        // if(!value&&!this.isClickedTD&&this.writableIsClickTD){
+        //   this.clearCurSelectedCells();//如果不显示bar，则同时要清空所有选择的单元格。是一种强绑定关系
+        //   console.log(value,"最后没有执行清空操作？");
+        // }
+        if(!value&&!this.isClickedAtOperationBar){
+          this.clearCurSelectedCells();
         }
       },
       deep:true,//迷惑的地方
     },
-    tableDataArr2:{
-      handler(value){
-        console.log("tableDataArr2改变了",value);
-      },
-      deep:true
-    }
   },
   methods:{
     getCellStyle(columnWidths,list,index){
@@ -242,11 +290,27 @@ export default {
     doUpdateWidgetsForDel(rowIndex,colIndex,delValue){
       const target=this.tabData.findIndex(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
       if(target!==-1){
+        // this.tabData.splice(target,1);//初始版本写法
+        //下面是优化，针对当删除到最后一个内容时，并不真正删除，而是将其变成MCTextContainer
+        const allMatchedItems=this.tabData.filter(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
+        const colSpan=allMatchedItems[0].colSpan;
+        const rowSpan=allMatchedItems[0].rowSpan;
         this.tabData.splice(target,1);
+        if(allMatchedItems.length===1){
+          console.log(allMatchedItems,"进来了计算allMatchedItems");
+          this.tabData.push({
+            id:this.$getRandomCode(8),
+            component:"MCTextContainer",
+            rowIndex: rowIndex,
+            colIndex: colIndex,
+            rowSpan: rowSpan,
+            colSpan: colSpan,
+          });
+        }
       }
     },
     doUpdateWidgets(newValue){
-      const newItems=[];
+      const newItems=[];//加入新对象的逻辑
       if(newValue&&Array.isArray(newValue)){
         for (const item of newValue) {
           if(item.id){
@@ -276,10 +340,12 @@ export default {
       this.selectedMinRowIndex=Number.NaN;
       this.pickedColIndex=Number.NaN;
       this.pickedRowIndex=Number.NaN;
+      this.pickedRowSpan=Number.NaN;
+      this.pickedColSpan=Number.NaN;
       console.log("执行了清理单元格所有的，为何？");
       this.isShowOperationBar=false;
     },
-    pushCurSelectCell(rowIndex,colIndex){
+    pushCurSelectCell(rowIndex,colIndex,rowSpan,colSpan){
       if(Number.isNaN(this.selectedMinRowIndex)){
         this.selectedMinRowIndex=rowIndex;
         this.selectedMaxRowIndex=rowIndex;
@@ -287,12 +353,19 @@ export default {
         this.selectedMaxColIndex=colIndex;
         this.pickedColIndex=colIndex;
         this.pickedRowIndex=rowIndex;
+        this.pickedRowSpan=rowSpan;
+        this.pickedColSpan=colSpan;
         return;
       }
       this.selectedMinRowIndex=Math.min(rowIndex,this.pickedRowIndex);
-      this.selectedMaxRowIndex=Math.max(rowIndex,this.pickedRowIndex);
+      this.selectedMaxRowIndex=Math.max(rowIndex+rowSpan-1,this.pickedRowIndex);
       this.selectedMinColIndex=Math.min(colIndex,this.pickedColIndex);
-      this.selectedMaxColIndex=Math.max(colIndex,this.pickedColIndex);
+      this.selectedMaxColIndex=Math.max(colIndex+colSpan-1,this.pickedColIndex);
+      //然后考虑初始选择的如果是跨行列的对象效应，将会这么处理
+      if(this.pickedRowSpan!==1|| this.pickedColSpan!==1){
+        this.selectedMaxRowIndex=Math.max(this.selectedMaxRowIndex,this.pickedRowIndex+this.pickedRowSpan-1);
+        this.selectedMaxColIndex=Math.max(this.pickedColIndex+this.pickedColSpan-1,this.selectedMaxColIndex);
+      }
 
       console.log(this.pickedRowIndex,this.selectedMinRowIndex,this.selectedMaxRowIndex,"--",this.pickedColIndex,this.selectedMinColIndex,this.selectedMaxColIndex);
     },
@@ -302,7 +375,7 @@ export default {
         console.log(target);
         const rowIndex=target.dataset.rowindex;
         const colIndex=target.dataset.colindex;
-        this.pushCurSelectCell(Number(rowIndex),Number(colIndex));
+        this.pushCurSelectCell(Number(rowIndex),Number(colIndex),Number(target.dataset.rowspan),Number(target.dataset.colspan));
       }
     },
     //控制是否按下移动td能否拖拽单元格
@@ -358,14 +431,253 @@ export default {
       this.writableIsClickTD=true;
       this.calculateCellOperationBarLocation(event);
     },
+    //拆分合并、删除行、删除列相关的
+    doSplitRowOrColumn(splitRowCount,splitColCount){
+      console.log(splitRowCount,splitColCount,"拆分行列");
+    },
+    //合并单元格
+    doMergeRowOrColumn(){
+      console.log("合并单元格");
+      if(this.selectedMaxColIndex===this.selectedMinColIndex&&this.selectedMaxRowIndex===this.selectedMinRowIndex){
+        return;
+      }
+
+      const mergeRowSpan=this.selectedMaxRowIndex-this.selectedMinRowIndex+1;
+      const mergeColSpan=this.selectedMaxColIndex-this.selectedMinColIndex+1;
+      const mergeRowIndex=this.selectedMinRowIndex;
+      const mergeColIndex=this.selectedMinColIndex;
+      let allMatchedItems = [];
+      for(let i=this.selectedMinRowIndex;i<=this.selectedMaxRowIndex;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
+        for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
+          // const curMatchedItems=this.
+          //todo 已经合并过的单元格，现在不支持嵌套合并。已解决
+          //todo 合并导致的行数减少，需要更新后续数据。已解决
+
+          //搜集获取此范围内的全部cells。是从tableData中进行搜寻。如果被搜寻的对象是跨单元格的，即已经合并后的对象，这个时候的交叉碰撞逻辑是，如果左上角的角点等于当前的i和j就被收集进来
+          const curMatchedItems=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j);
+          if(curMatchedItems&&curMatchedItems.length>0){
+            curMatchedItems.forEach(item=>{
+              item.rowIndex=mergeRowIndex;
+              item.colIndex=mergeColIndex;
+              item.colSpan=mergeColSpan;
+              item.rowSpan=mergeRowSpan;
+            });
+            allMatchedItems.push(...curMatchedItems);
+          }
+        }
+      }
+      //如果合并导致列数或行数发生了改变，除了要修改总的列数和行数信息外，还要先修改各个单元格的索引号
+      //由于列贯通，需要减少单元格行数的情况。
+      console.log(this.selectedMaxColIndex-this.selectedMinColIndex+1===this.colCount&&this.selectedMaxRowIndex!==this.selectedMinRowIndex,"由于列贯通，需要减少单元格行数的情况。");
+      if(this.selectedMaxColIndex-this.selectedMinColIndex+1===this.colCount&&this.selectedMaxRowIndex!==this.selectedMinRowIndex){
+        //需要减少的行数
+        const rowCountToSubtract=this.selectedMaxRowIndex-this.selectedMinRowIndex;
+        //计算从哪个位置开始减少
+        const startRowIndexToSubtract=this.selectedMaxRowIndex+1;
+        console.log(rowCountToSubtract,startRowIndexToSubtract,this.rowCount-rowCountToSubtract);
+        //减少后的实际行数
+        const restRowCount=this.rowCount-rowCountToSubtract;
+        const map=new Map();
+        for(let k=startRowIndexToSubtract;k<restRowCount;k++){
+          const matchedCurRowCells=this.tabData.filter(item=>item.rowIndex===k);
+          if(matchedCurRowCells&&matchedCurRowCells.length>0){
+            map.set(k-rowCountToSubtract,matchedCurRowCells);
+          }
+        }
+
+        map.forEach((value,key)=>{
+          console.log(value,"value");
+          value.forEach(item=>{
+            item.rowIndex=key;
+          });
+        });
+        // console.log("由于列贯通，需要减少单元格行数的情况。",restRowCount,this.colCount);
+        // this.$emit("updateRowColCount",restRowCount,this.colCount);
+        // console.log('Emitted updateRowColCount event');
+        // this.myRowCount=restRowCount;
+
+        //如果构成造成行数减小，那么行的rowSpan将设置为1
+        if(allMatchedItems&&allMatchedItems.length>0){
+          allMatchedItems.forEach(item=>{
+            item.rowSpan=1;
+          });
+          console.log("行span设置为1无效？",allMatchedItems);
+        }
+
+        this.myRowCount=restRowCount;
+        //计算更新选择框
+        this.selectedMaxRowIndex=this.selectedMaxRowIndex-rowCountToSubtract;
+        // console.log(this.itemComponent.rowCount,restRowCount);
+      }
+
+      //todo 列操作
+      //由于行贯通选择【纵向选择】，导致的列数减少的情况
+      if(this.selectedMaxRowIndex-this.selectedMinRowIndex+1===this.rowCount&&this.selectedMaxColIndex!==this.selectedMinColIndex){
+        //需要减少的列数
+        const colCountToSubtract=this.selectedMaxColIndex-this.selectedMinColIndex;
+        //计算从哪个位置开始减少
+        const startColIndexToSubtract=this.selectedMaxColIndex+1;
+        console.log(colCountToSubtract,startColIndexToSubtract,this.colCount-colCountToSubtract);
+        //减少后的实际列数
+        const restColCount=this.colCount-colCountToSubtract;
+        const map=new Map();
+        for(let k=startColIndexToSubtract;k<restColCount;k++){
+          const matchedCurRowCells=this.tabData.filter(item=>item.colIndex===k);
+          if(matchedCurRowCells&&matchedCurRowCells.length>0){
+            map.set(k-colCountToSubtract,matchedCurRowCells);
+          }
+        }
+
+        map.forEach((value,key)=>{
+          console.log(value,"value");
+          value.forEach(item=>{
+            item.colIndex=key;
+          });
+        });
+        // console.log("由于列贯通，需要减少单元格行数的情况。",restRowCount,this.colCount);
+        // this.$emit("updateRowColCount",restRowCount,this.colCount);
+        // console.log('Emitted updateRowColCount event');
+        // this.myRowCount=restRowCount;
+
+        //如果构成造成行数减小，那么行的rowSpan将设置为1
+        if(allMatchedItems&&allMatchedItems.length>0){
+          allMatchedItems.forEach(item=>{
+            item.colSpan=1;
+          });
+          console.log("行span设置为1无效？",allMatchedItems);
+        }
+
+        this.myColCount=restColCount;
+        //计算更新选择框
+        this.selectedMaxColIndex=this.selectedMaxColIndex-colCountToSubtract;
+        // console.log(this.itemComponent.rowCount,restRowCount);
+      }
+    },
+    //删除所在行
+    doDeleteLocatedRow(){
+      //考虑到有可能要支持选择多行。
+      if(Number.isNaN(this.selectedMaxRowIndex)){
+        return;//保险起见，应该不会遇到这种
+      }
+      //需要减少的行数，这里看出来和合并单元格的不同了，这里如果只选择一行，其实总行数还是要减1，而合并单元格就不是这样了
+      const rowCountToSubtract=this.selectedMaxRowIndex-this.selectedMinRowIndex+1;
+      //计算从哪个位置开始减少
+      const startRowIndexToSubtract=this.selectedMaxRowIndex+1;
+      //减少后的实际行数
+      const restRowCount=this.rowCount-rowCountToSubtract;
+      // let allMatchedItems = [];
+      for(let i=this.selectedMinRowIndex;i<=this.selectedMaxRowIndex;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
+        for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
+          //搜集获取此范围内的全部cells。是从tableData中进行搜寻。如果被搜寻的对象是跨单元格的，即已经合并后的对象，这个时候的交叉碰撞逻辑是，如果左上角的角点等于当前的i和j就被收集进来
+          //const curMatchedItems=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j);
+          // if(curMatchedItems&&curMatchedItems.length>0){
+          //   // allMatchedItems.push(...curMatchedItems);
+          //   curMatchedItems.forEach(item=>{
+          //     const curIndex=this.tabData.findIndex(item2=>item2===item);
+          //     if(curIndex===-1){
+          //       throw Error("出现异常逻辑了");
+          //     }
+          //     this.tabData.spli
+          //   })
+          // }
+
+          //移除当前ij单元格下的多个项
+          let matchedIndex;
+          do{
+            matchedIndex=this.tabData.findIndex(item=>item.rowIndex===i&&item.colIndex===j);
+            if(matchedIndex==-1){
+              break;
+            }
+            this.tabData.splice(matchedIndex,1);
+          }
+          while(matchedIndex!==-1)
+        }
+      }
+
+      //更新其他大于删除所行的对象
+      const map=new Map();
+      for(let k=startRowIndexToSubtract;k<restRowCount;k++){
+        const matchedCurRowCells=this.tabData.filter(item=>item.rowIndex===k);
+        if(matchedCurRowCells&&matchedCurRowCells.length>0){
+          map.set(k-rowCountToSubtract,matchedCurRowCells);
+        }
+      }
+
+      map.forEach((value,key)=>{
+        console.log(value,"value");
+        value.forEach(item=>{
+          item.rowIndex=key;
+        });
+      });
+
+      this.myRowCount=restRowCount;
+      //计算更新选择框
+      this.clearCurSelectedCells();
+
+      //todo 只做数据的挪位置，而高度索引不变的做法看起来很奇怪，这里最好再实现一个高度联动。
+      //todo 如果删除的行左侧有合并列单元格的对象。此时如何处理？
+    },
+    //删除所在列
+    doDeleteLocatedCol(){
+      //考虑到有可能要支持选择多行。
+      if(Number.isNaN(this.selectedMaxColIndex)){
+        return;//保险起见，应该不会遇到这种
+      }
+      //需要减少的列数
+      const colCountToSubtract=this.selectedMaxColIndex-this.selectedMinColIndex;
+      //计算从哪个位置开始减少
+      const startColIndexToSubtract=this.selectedMaxColIndex+1;
+      //减少后的实际列数
+      const restColCount=this.colCount-colCountToSubtract;
+      for(let i=this.selectedMinRowIndex;i<=this.selectedMaxRowIndex;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
+        for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
+          //移除当前ij单元格下的多个项
+          let matchedIndex;
+          do{
+            matchedIndex=this.tabData.findIndex(item=>item.rowIndex===i&&item.colIndex===j);
+            if(matchedIndex==-1){
+              break;
+            }
+            this.tabData.splice(matchedIndex,1);
+          }
+          while(matchedIndex!==-1)
+        }
+      }
+
+      //更新其他大于删除所行的对象。todo这种做法，会使得我重新调整行列数据，尤其调大时，会导致原来的对象又出来了，其实还好。符合主体逻辑
+      //todo 这种做法，会使得我重新调整行列数据，尤其调大时，会导致原来的对象又出来了，其实还好。符合主体逻辑
+      const map=new Map();
+      for(let k=startColIndexToSubtract;k<restColCount;k++){
+        const matchedCurRowCells=this.tabData.filter(item=>item.colIndex===k);
+        if(matchedCurRowCells&&matchedCurRowCells.length>0){
+          map.set(k-colCountToSubtract,matchedCurRowCells);
+        }
+      }
+
+      map.forEach((value,key)=>{
+        console.log(value,"value");
+        value.forEach(item=>{
+          item.colIndex=key;
+        });
+      });
+
+      this.myColCount=restColCount;
+      //计算更新选择框
+      this.clearCurSelectedCells();
+
+      //todo 只做数据的挪位置，而高度索引不变的做法看起来很奇怪，这里最好再实现一个高度联动。
+      //todo 如果删除的行左侧有合并列单元格的对象。此时如何处理？
+    },
     //和显示修改、配置单元格颜色有关的
-    showTableConfig(item,rowIndex,colIndex){
+    showTableConfig(item,rowIndex,colIndex,rowSpan,colSpan){
       this.selectedMinColIndex=colIndex;
       this.selectedMaxColIndex=colIndex;
       this.selectedMinRowIndex=rowIndex;
       this.selectedMaxRowIndex=rowIndex;
       this.pickedColIndex=colIndex;
       this.pickedRowIndex=rowIndex;
+      this.pickedRowSpan=rowSpan;
+      this.pickedColSpan=colSpan;
       if(!item||item.length===0){
         return;
       }
