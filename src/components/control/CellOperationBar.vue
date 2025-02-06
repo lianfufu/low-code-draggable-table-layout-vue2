@@ -21,7 +21,7 @@
       <el-button size="mini" @click="deleteLocateRow">删除所在行</el-button>
     </div>
     <div class="delete-col">
-      <el-button size="mini">删除所在列</el-button>
+      <el-button size="mini" @click="deleteLocateCol">删除所在列</el-button>
     </div>
   </div>
 </template>
@@ -37,7 +37,7 @@ export default {
       myIsClickedAtOperationBar:false,
     }
   },
-  emits:["updateCurCellSplitInfo","doMergeCells","doDeleteRow"],
+  emits:["updateCurCellSplitInfo","doMergeCells","doDeleteRow","doDeleteCol"],
   props:{
     positionVal:{
       type:Object,
@@ -73,6 +73,9 @@ export default {
     },
     deleteLocateRow(){
       this.$emit("doDeleteRow");
+    },
+    deleteLocateCol(){
+      this.$emit("doDeleteCol");
     }
   }
 }

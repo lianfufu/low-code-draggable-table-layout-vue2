@@ -9,7 +9,7 @@
   <div class="wrap" :style="{paddingBottom:padding+'px',paddingTop:padding+'px'}" @click="sourceTargetClickIsTD">
 <!--    <div style="opacity: 0;height: 0">{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>-->
     <div>{{writableIsClickTD}}-{{isShowOperationBar}}-{{isClickedTD}}</div>
-    <cell-operation-bar v-show="isClickedAtOperationBar||(isShowOperationBar&&writableIsClickTD)" @updateCurCellSplitInfo="doSplitRowOrColumn" @doMergeCells="doMergeRowOrColumn" @doDeleteRow="doDeleteLocatedRow" :isClickedAtOperationBar.sync="isClickedAtOperationBar" :positionVal="operationBarPosition"/>
+    <cell-operation-bar v-show="isClickedAtOperationBar||(isShowOperationBar&&writableIsClickTD)" @updateCurCellSplitInfo="doSplitRowOrColumn" @doMergeCells="doMergeRowOrColumn" @doDeleteRow="doDeleteLocatedRow" @doDeleteCol="doDeleteLocatedCol" :isClickedAtOperationBar.sync="isClickedAtOperationBar" :positionVal="operationBarPosition"/>
     <table ref="mytable" class="table" :border="isShowBorder?1:0">
       <tbody>
         <tr v-for="(item,index) in tableDataArr2" :style="{height:rowHeights[index]+'px'}" :key="index">
@@ -478,13 +478,13 @@ export default {
         //减少后的实际行数
         const restRowCount=this.rowCount-rowCountToSubtract;
         const map=new Map();
-        for(let k=startRowIndexToSubtract;k<restRowCount;k++){
+        for(let k=startRowIndexToSubtract;k<this.rowCount;k++){
           const matchedCurRowCells=this.tabData.filter(item=>item.rowIndex===k);
           if(matchedCurRowCells&&matchedCurRowCells.length>0){
             map.set(k-rowCountToSubtract,matchedCurRowCells);
           }
         }
-
+        console.log(map,'此处的map');
         map.forEach((value,key)=>{
           console.log(value,"value");
           value.forEach(item=>{
@@ -567,25 +567,13 @@ export default {
       const restRowCount=this.rowCount-rowCountToSubtract;
       // let allMatchedItems = [];
       for(let i=this.selectedMinRowIndex;i<=this.selectedMaxRowIndex;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
-        for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
-          //搜集获取此范围内的全部cells。是从tableData中进行搜寻。如果被搜寻的对象是跨单元格的，即已经合并后的对象，这个时候的交叉碰撞逻辑是，如果左上角的角点等于当前的i和j就被收集进来
-          //const curMatchedItems=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j);
-          // if(curMatchedItems&&curMatchedItems.length>0){
-          //   // allMatchedItems.push(...curMatchedItems);
-          //   curMatchedItems.forEach(item=>{
-          //     const curIndex=this.tabData.findIndex(item2=>item2===item);
-          //     if(curIndex===-1){
-          //       throw Error("出现异常逻辑了");
-          //     }
-          //     this.tabData.spli
-          //   })
-          // }
+        for(let j=0;j<this.colCount;j++){
 
           //移除当前ij单元格下的多个项
           let matchedIndex;
           do{
             matchedIndex=this.tabData.findIndex(item=>item.rowIndex===i&&item.colIndex===j);
-            if(matchedIndex==-1){
+            if(matchedIndex===-1){
               break;
             }
             this.tabData.splice(matchedIndex,1);
@@ -596,7 +584,7 @@ export default {
 
       //更新其他大于删除所行的对象
       const map=new Map();
-      for(let k=startRowIndexToSubtract;k<restRowCount;k++){
+      for(let k=startRowIndexToSubtract;k<this.rowCount;k++){
         const matchedCurRowCells=this.tabData.filter(item=>item.rowIndex===k);
         if(matchedCurRowCells&&matchedCurRowCells.length>0){
           map.set(k-rowCountToSubtract,matchedCurRowCells);
@@ -619,35 +607,77 @@ export default {
     },
     //删除所在列
     doDeleteLocatedCol(){
+      console.log("删除所在列",Number.isNaN(this.selectedMaxColIndex));
       //考虑到有可能要支持选择多行。
       if(Number.isNaN(this.selectedMaxColIndex)){
         return;//保险起见，应该不会遇到这种
       }
       //需要减少的列数
-      const colCountToSubtract=this.selectedMaxColIndex-this.selectedMinColIndex;
+      const colCountToSubtract=this.selectedMaxColIndex-this.selectedMinColIndex+1;
       //计算从哪个位置开始减少
       const startColIndexToSubtract=this.selectedMaxColIndex+1;
       //减少后的实际列数
       const restColCount=this.colCount-colCountToSubtract;
-      for(let i=this.selectedMinRowIndex;i<=this.selectedMaxRowIndex;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
+      const cellsToDecreaseRowSpan=new Map();
+      const cellsToDecreaseRowSpanAndColIndex=new Map();
+      for(let i=0;i<this.rowCount;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
         for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
-          //移除当前ij单元格下的多个项
+          //移除当前ij单元格下的多个项，可做直接移出的
           let matchedIndex;
           do{
-            matchedIndex=this.tabData.findIndex(item=>item.rowIndex===i&&item.colIndex===j);
-            if(matchedIndex==-1){
+            matchedIndex=this.tabData.findIndex(item=>item.rowIndex===i&&item.colIndex===j&&(item.colSpan===1||item.colIndex+item.colSpan-1<=this.selectedMaxColIndex));//只针对最基础单元格的才删除
+            if(matchedIndex===-1){
               break;
             }
             this.tabData.splice(matchedIndex,1);
           }
           while(matchedIndex!==-1)
+
+          //单元格存在列span，恰巧单元格的起始colIndex等于当前的j，且colspan的最右侧，已经超出的框选的maxSelectedColIndex时，其实确保这个就可以了item=>item.rowIndex===i&&item.colIndex===j，为了保险起见增加其他判断条件
+          //要减少colspan的值，colIndex在这种情况下保持不变
+          let matchedIndexForCellToDecreaseRowSpanAndCol=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j&&(item.colSpan!==1&&item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
+          matchedIndexForCellToDecreaseRowSpanAndCol.forEach(item=>{
+            //单元格最右侧多出来框选区域有多少用这个算：item.colSpan+item.colIndex-1-(this.selectedMaxColIndex-j);
+            const spanToRemove=this.selectedMaxColIndex-j+1;
+            const restColSpan=item.colSpan-spanToRemove;
+            if(restColSpan<1){
+              throw new Error("算法逻辑出了异常",`${restColSpan}<1`);
+            }
+            // const newColIndex=item.colSpan+
+            if(!cellsToDecreaseRowSpanAndColIndex.has(item)){
+              cellsToDecreaseRowSpanAndColIndex.set(item,restColSpan);
+            }
+          })
+
+          //单元格存在列span，且span后的最右侧在整个框选范围的左内侧，仅修改colspan的值即可
+          let matchedIndexForCellToDecreaseRowSpan=this.tabData.filter(item=>(item.rowIndex===i&&item.colIndex<j)&&(item.colSpan!==1&&item.colIndex+item.colSpan-1>=j));
+          if(matchedIndexForCellToDecreaseRowSpan&&matchedIndexForCellToDecreaseRowSpan.length>0){
+            matchedIndexForCellToDecreaseRowSpan.forEach((item)=>{
+              //计算一下移出所选列跨数后，当前item的colSpan值
+              let removeSpanCount;
+              if(item.colSpan+item.colIndex-1>=this.selectedMaxColIndex){
+                // removeSpanCount=this.selectedMaxColIndex-this.selectedMinColIndex+1;
+                //为了保险起见，减j而不是selectedMinColIndex
+                removeSpanCount=this.selectedMaxColIndex-j+1;
+              }else{
+                removeSpanCount=(item.colSpan+item.colIndex-1)-j+1;
+              }
+              const restSpanCount=item.colSpan-removeSpanCount;
+              if(restSpanCount<1){
+                throw new Error("算法逻辑出了异常",`${restSpanCount}<1`);
+              }
+              if(!cellsToDecreaseRowSpanAndColIndex.has(item)&&cellsToDecreaseRowSpan.has(item)){
+                cellsToDecreaseRowSpan.set(item,restSpanCount);
+              }
+            });
+          }
         }
       }
 
       //更新其他大于删除所行的对象。todo这种做法，会使得我重新调整行列数据，尤其调大时，会导致原来的对象又出来了，其实还好。符合主体逻辑
       //todo 这种做法，会使得我重新调整行列数据，尤其调大时，会导致原来的对象又出来了，其实还好。符合主体逻辑
       const map=new Map();
-      for(let k=startColIndexToSubtract;k<restColCount;k++){
+      for(let k=startColIndexToSubtract;k<this.colCount;k++){
         const matchedCurRowCells=this.tabData.filter(item=>item.colIndex===k);
         if(matchedCurRowCells&&matchedCurRowCells.length>0){
           map.set(k-colCountToSubtract,matchedCurRowCells);
@@ -671,9 +701,9 @@ export default {
     //和显示修改、配置单元格颜色有关的
     showTableConfig(item,rowIndex,colIndex,rowSpan,colSpan){
       this.selectedMinColIndex=colIndex;
-      this.selectedMaxColIndex=colIndex;
+      this.selectedMaxColIndex=colIndex+colSpan-1;
       this.selectedMinRowIndex=rowIndex;
-      this.selectedMaxRowIndex=rowIndex;
+      this.selectedMaxRowIndex=rowIndex+rowSpan-1;
       this.pickedColIndex=colIndex;
       this.pickedRowIndex=rowIndex;
       this.pickedRowSpan=rowSpan;
