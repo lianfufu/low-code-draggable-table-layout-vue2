@@ -36,7 +36,7 @@
 <script>
 
 import _ from "lodash";
-
+import {lcm} from "@/utils/mathUtils";
 export default {
   name: 'McTable',
   data(){
@@ -410,7 +410,7 @@ export default {
     sourceTargetClickIsTD(){
       const isClickTDViewFromWrapperDiv=  event.target.nodeName === "TD"||event.target.nodeName === "TR"||event.target.nodeName === "TBODY";
       if(!isClickTDViewFromWrapperDiv){
-        const isFromChild = event.target.closest('.cell-operation-bar');
+        const isFromChild = event.target.closest('.cell-operation-bar') && !event.target.closest('.delete-row') && !event.target.closest('.delete-col');
         if(!isFromChild){
           this.isShowOperationBar=false;
           this.isClickedAtOperationBar=false;
@@ -432,9 +432,6 @@ export default {
       this.calculateCellOperationBarLocation(event);
     },
     //拆分合并、删除行、删除列相关的
-    doSplitRowOrColumn(splitRowCount,splitColCount){
-      console.log(splitRowCount,splitColCount,"拆分行列");
-    },
     //合并单元格
     doMergeRowOrColumn(){
       console.log("合并单元格");
@@ -553,6 +550,85 @@ export default {
         // console.log(this.itemComponent.rowCount,restRowCount);
       }
     },
+    //拆分单元格
+    doSplitRowOrColumn(splitRowCount,splitColCount){
+      if(Number.isNaN(splitColCount)||Number.isNaN(splitRowCount)){
+        //todo 都没有一些错误提示框，可采用el-modal实现
+        return;
+      }
+
+      if(splitRowCount===1&&splitColCount===1){
+        //本身选择一个，拆分目标为1行1列，相当于不用做拆分
+        return;
+      }
+
+      //判断是选中了1个单元格还是多个，如果选择多个，则不支持拆分
+      //原理：点击的那个单元格，会出现在最终选择区域的四个角点之一的位置处。
+      const isSelectedMultiCells=this.selectedMaxRowIndex>this.pickedRowIndex+this.pickedRowSpan||this.selectedMaxColIndex>this.pickedColIndex+this.pickedColSpan||this.selectedMinRowIndex<this.pickedRowIndex||this.selectedMinColIndex<this.pickedColIndex;
+      if(isSelectedMultiCells){
+        console.warn("选择了多个单元格,无法拆分");
+        return;
+      }
+
+      //判断所选的单元格是否是合并的对象
+      if(this.pickedRowSpan===1&&this.pickedColSpan===1){
+        console.warn("暂不支持最小单元的拆分");
+        return;
+      }
+
+      //计算由于拆分当前单元格，由于列拆分，而制造的总的单元格数。例如，当前单元格跨3列，被拆分为了2列，此时的制造总单元格为其最小公倍数6
+      const newSelectedColSpanCount=lcm(this.pickedColSpan,splitColCount);
+      const newSelectedRowSpanCount=lcm(this.pickedRowSpan,splitRowCount);
+
+      const addColCount=newSelectedColSpanCount-this.pickedColSpan;//如果跨3列，被拆分成了3列，最小公倍数是3。因此，此时无需新增列
+      const addRowCount=newSelectedRowSpanCount-this.pickedRowSpan;
+
+      const everyNewCreateDataColSpan=newSelectedColSpanCount/splitColCount;
+      if(!Number.isInteger(everyNewCreateDataColSpan)){
+        throw new Error("最小公倍数逻辑异常，因为没有被整除"+everyNewCreateDataColSpan);
+      }
+      //最后需要统一处理的对象，放置频繁触发响应式，且避免索引和跨数变更，导致的参照改变，而引发的潜在异常。
+      let curCellData;//需要将colSpan设置为everyNewCreateDataColSpan
+      const newCreatedData=[];
+
+      //先处理列拆分吧，暂不处理行拆分。
+      for(let i=0;i<this.rowCount;i++){
+        //i在选择的水平段范围时，只执行初次。此时selectedMinRowIndex就等于pickedRowIndex了，pickedMaxRowIndex等于this.pickedRowIndex+this.pickedRowSpan-1
+        if(i===this.pickedRowIndex){
+          //获取该陀合并后的数据item
+          curCellData=this.tabData.filter(item=>item.rowIndex===this.pickedRowIndex&&item.colIndex===this.pickedColIndex);
+          for(let m=this.pickedColIndex;m<this.pickedColIndex+newSelectedColSpanCount;m+=everyNewCreateDataColSpan){
+            if(m===this.pickedColIndex){
+              continue;
+            }
+            newCreatedData.push({
+              id:this.$getRandomCode(8),
+              component:"MCTextContainer",
+              rowIndex:i,
+              colIndex:m,
+              rowSpan:this.pickedRowSpan,
+              colSpan:everyNewCreateDataColSpan
+            });
+          }
+          continue;
+        }
+        if(i>this.pickedRowIndex&&i<=this.pickedRowIndex+this.pickedRowSpan-1){
+          continue;
+        }
+
+        //执行非水平选择段的处理逻辑
+        //步骤1：先处理完全落入，minColIndex和maxColIndex之间的对象
+        // const cellsFullInSelectedColRange=[];
+        for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
+          const curCellsFullInSelectedColRange = this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j&&(item.colSpan===1||item.colIndex+item.colSpan-1<=this.selectedMaxColIndex));
+          // cellsFullInSelectedColRange.push(...curCellsFullInSelectedColRange);
+        }
+        //左侧存在部分相交的cells
+        const cellsLeftIntersectedWithSelectedRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex<this.selectedMinColIndex)&&(item.colIndex+item.colSpan-1>=this.selectedMinColIndex&&item.colIndex+item.colSpan-1<=this.selectedMaxColIndex));
+        const cellsFullOutSelectedColRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex<this.selectedMinColIndex)&&(item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
+        const cellsRightIntersectedWithSelectedRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex>=this.selectedMinColIndex&&item.colIndex<=this.selectedMaxColIndex)&&(item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
+      }
+    },
     //删除所在行
     doDeleteLocatedRow(){
       //考虑到有可能要支持选择多行。
@@ -565,20 +641,59 @@ export default {
       const startRowIndexToSubtract=this.selectedMaxRowIndex+1;
       //减少后的实际行数
       const restRowCount=this.rowCount-rowCountToSubtract;
-      // let allMatchedItems = [];
+      const cellsToDecreaseRowSpan=new Map();
+      const cellsToDecreaseRowSpanAndColIndex=new Map();
+
+
       for(let i=this.selectedMinRowIndex;i<=this.selectedMaxRowIndex;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
         for(let j=0;j<this.colCount;j++){
-
           //移除当前ij单元格下的多个项
           let matchedIndex;
           do{
-            matchedIndex=this.tabData.findIndex(item=>item.rowIndex===i&&item.colIndex===j);
+            matchedIndex=this.tabData.findIndex(item=>item.rowIndex===i&&item.colIndex===j&&(item.rowSpan===1||item.rowIndex+item.rowSpan-1<=this.selectedMaxRowIndex));
             if(matchedIndex===-1){
               break;
             }
             this.tabData.splice(matchedIndex,1);
           }
           while(matchedIndex!==-1)
+
+          let matchedIndexForCellToDecreaseRowSpanAndCol=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j&&(item.rowSpan!==1&&item.rowIndex+item.rowSpan-1>this.selectedMaxRowIndex));
+
+          matchedIndexForCellToDecreaseRowSpanAndCol.forEach(item=>{
+            //单元格最右侧多出来框选区域有多少用这个算：item.colSpan+item.colIndex-1-(this.selectedMaxColIndex-j);
+            const spanToRemove=this.selectedMaxRowIndex-i+1;
+            const restColSpan=item.rowSpan-spanToRemove;
+            if(restColSpan<1){
+              throw new Error("算法逻辑出了异常");
+            }
+            // const newColIndex=item.colSpan+
+            if(!cellsToDecreaseRowSpanAndColIndex.has(item)){
+              cellsToDecreaseRowSpanAndColIndex.set(item,restColSpan);
+            }
+          });
+
+          let matchedIndexForCellToDecreaseRowSpan=this.tabData.filter(item=>(item.colIndex===j&&item.rowIndex<i)&&(item.rowSpan!==1&&item.rowIndex+item.rowSpan-1>=i));
+          if(matchedIndexForCellToDecreaseRowSpan&&matchedIndexForCellToDecreaseRowSpan.length>0){
+            matchedIndexForCellToDecreaseRowSpan.forEach((item)=>{
+              //计算一下移出所选列跨数后，当前item的colSpan值
+              let removeSpanCount;
+              if(item.rowSpan+item.rowIndex-1>=this.selectedMaxRowIndex){
+                // removeSpanCount=this.selectedMaxColIndex-this.selectedMinColIndex+1;
+                //为了保险起见，减j而不是selectedMinColIndex
+                removeSpanCount=this.selectedMaxRowIndex-i+1;
+              }else{
+                removeSpanCount=(item.rowSpan+item.rowIndex-1)-i+1;
+              }
+              const restSpanCount=item.rowSpan-removeSpanCount;
+              if(restSpanCount<1){
+                throw new Error("算法逻辑出了异常");
+              }
+              if(!cellsToDecreaseRowSpanAndColIndex.has(item)&&!cellsToDecreaseRowSpan.has(item)){
+                cellsToDecreaseRowSpan.set(item,restSpanCount);
+              }
+            });
+          }
         }
       }
 
@@ -596,6 +711,15 @@ export default {
         value.forEach(item=>{
           item.rowIndex=key;
         });
+      });
+
+      console.log(cellsToDecreaseRowSpan,cellsToDecreaseRowSpanAndColIndex,"2个map");
+      cellsToDecreaseRowSpan.forEach((value,key)=>{
+        key.rowSpan=value;
+      });
+
+      cellsToDecreaseRowSpanAndColIndex.forEach((value,key)=>{
+        key.rowSpan=value;
       });
 
       this.myRowCount=restRowCount;
@@ -620,6 +744,8 @@ export default {
       const restColCount=this.colCount-colCountToSubtract;
       const cellsToDecreaseRowSpan=new Map();
       const cellsToDecreaseRowSpanAndColIndex=new Map();
+
+
       for(let i=0;i<this.rowCount;i++){//合并后，让他不再被选中，因为之前的selectedMinRowIndex会自动更新，也不要有操作柄
         for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
           //移除当前ij单元格下的多个项，可做直接移出的
@@ -635,13 +761,15 @@ export default {
 
           //单元格存在列span，恰巧单元格的起始colIndex等于当前的j，且colspan的最右侧，已经超出的框选的maxSelectedColIndex时，其实确保这个就可以了item=>item.rowIndex===i&&item.colIndex===j，为了保险起见增加其他判断条件
           //要减少colspan的值，colIndex在这种情况下保持不变
+
           let matchedIndexForCellToDecreaseRowSpanAndCol=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j&&(item.colSpan!==1&&item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
+
           matchedIndexForCellToDecreaseRowSpanAndCol.forEach(item=>{
             //单元格最右侧多出来框选区域有多少用这个算：item.colSpan+item.colIndex-1-(this.selectedMaxColIndex-j);
             const spanToRemove=this.selectedMaxColIndex-j+1;
             const restColSpan=item.colSpan-spanToRemove;
             if(restColSpan<1){
-              throw new Error("算法逻辑出了异常",`${restColSpan}<1`);
+              throw new Error("算法逻辑出了异常");
             }
             // const newColIndex=item.colSpan+
             if(!cellsToDecreaseRowSpanAndColIndex.has(item)){
@@ -651,6 +779,7 @@ export default {
 
           //单元格存在列span，且span后的最右侧在整个框选范围的左内侧，仅修改colspan的值即可
           let matchedIndexForCellToDecreaseRowSpan=this.tabData.filter(item=>(item.rowIndex===i&&item.colIndex<j)&&(item.colSpan!==1&&item.colIndex+item.colSpan-1>=j));
+
           if(matchedIndexForCellToDecreaseRowSpan&&matchedIndexForCellToDecreaseRowSpan.length>0){
             matchedIndexForCellToDecreaseRowSpan.forEach((item)=>{
               //计算一下移出所选列跨数后，当前item的colSpan值
@@ -664,9 +793,9 @@ export default {
               }
               const restSpanCount=item.colSpan-removeSpanCount;
               if(restSpanCount<1){
-                throw new Error("算法逻辑出了异常",`${restSpanCount}<1`);
+                throw new Error("算法逻辑出了异常");
               }
-              if(!cellsToDecreaseRowSpanAndColIndex.has(item)&&cellsToDecreaseRowSpan.has(item)){
+              if(!cellsToDecreaseRowSpanAndColIndex.has(item)&&!cellsToDecreaseRowSpan.has(item)){
                 cellsToDecreaseRowSpan.set(item,restSpanCount);
               }
             });
@@ -689,6 +818,14 @@ export default {
         value.forEach(item=>{
           item.colIndex=key;
         });
+      });
+      console.log(cellsToDecreaseRowSpan,cellsToDecreaseRowSpanAndColIndex,"2个map");
+      cellsToDecreaseRowSpan.forEach((value,key)=>{
+        key.colSpan=value;
+      });
+
+      cellsToDecreaseRowSpanAndColIndex.forEach((value,key)=>{
+        key.colSpan=value;
       });
 
       this.myColCount=restColCount;

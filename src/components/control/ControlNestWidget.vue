@@ -96,6 +96,13 @@ export default {
               }
             }
           });
+          if(value.length>1){
+            const mcTextContainerIndex=value.findIndex(item=>item.component==='MCTextContainer');
+            if(mcTextContainerIndex!==-1){
+              console.log("执行了移除",mcTextContainerIndex,value,value.filter(item=>item.component==='MCTextContainer'));
+              this.list.splice(mcTextContainerIndex,1);//移入单元格其他可拖拽元素后，单元格的MCTextContainer类型的item将被移除
+            }
+          }
         }
         console.log(value);
         this.$emit("update:widgets",value);
