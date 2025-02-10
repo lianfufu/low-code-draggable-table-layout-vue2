@@ -459,6 +459,7 @@ export default {
               item.colSpan=mergeColSpan;
               item.rowSpan=mergeRowSpan;
             });
+            console.log("合并后的curMatchedItems",curMatchedItems);
             allMatchedItems.push(...curMatchedItems);
           }
         }
@@ -550,8 +551,18 @@ export default {
         // console.log(this.itemComponent.rowCount,restRowCount);
       }
     },
+    //拆分单元格用的小逻辑
+    changeItemColIndexAndSpan(items){
+      if(items?.size>0){
+        items.forEach((value,key)=>{
+          key.colIndex=value.colIndex;
+          key.colSpan=value.colSpan;
+        });
+      }
+    },
     //拆分单元格
     doSplitRowOrColumn(splitRowCount,splitColCount){
+      console.log(splitRowCount,splitColCount,"要拆分单元格了");
       if(Number.isNaN(splitColCount)||Number.isNaN(splitRowCount)){
         //todo 都没有一些错误提示框，可采用el-modal实现
         return;
@@ -590,44 +601,365 @@ export default {
       //最后需要统一处理的对象，放置频繁触发响应式，且避免索引和跨数变更，导致的参照改变，而引发的潜在异常。
       let curCellData;//需要将colSpan设置为everyNewCreateDataColSpan
       const newCreatedData=[];
+      const cellRecordsForFullIn=new Map();
+      const cellRecordsForLeftIntersectedWith=new Map();
+      const cellRecordsForRightIntersectedWith=new Map();
+      const cellRecordsForFullOuter=new Map();
+      const cellRecordsForFullRight=new Map();
 
-      //先处理列拆分吧，暂不处理行拆分。
-      for(let i=0;i<this.rowCount;i++){
-        //i在选择的水平段范围时，只执行初次。此时selectedMinRowIndex就等于pickedRowIndex了，pickedMaxRowIndex等于this.pickedRowIndex+this.pickedRowSpan-1
-        if(i===this.pickedRowIndex){
-          //获取该陀合并后的数据item
-          curCellData=this.tabData.filter(item=>item.rowIndex===this.pickedRowIndex&&item.colIndex===this.pickedColIndex);
-          for(let m=this.pickedColIndex;m<this.pickedColIndex+newSelectedColSpanCount;m+=everyNewCreateDataColSpan){
-            if(m===this.pickedColIndex){
+      if(splitColCount>1){
+        //先处理列拆分吧，暂不处理行拆分。
+        for(let i=0;i<this.rowCount;i++){
+          //无论哪次都要进行执行的，收集完全右侧的内容
+          //当列数发生变化的时候才执行下面的调整右侧的colIndex
+          // const rightCells=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex>this.selectedMaxColIndex&&item.colIndex<this.colCount);
+          //采用这种方式，目的是：必须右侧看不到的内容既然存在，必须也跟着更新，不然会看到内容区会多出来非视觉区的其他对象了。
+          if(newSelectedColSpanCount>this.pickedColSpan){
+            const rightCells=this.tabData.filter(item=>item.rowIndex===i&&item.colIndex>this.selectedMaxColIndex);
+            if(rightCells&&rightCells.length>0){
+              rightCells.forEach(item=>{
+                if(!cellRecordsForFullRight.has(item)){
+                  const newColIndex=item.colIndex+addColCount;
+                  cellRecordsForFullRight.set(item,{
+                    colSpan:item.colSpan,
+                    colIndex:newColIndex,
+                  });
+                }
+              })
+            }
+          }
+
+          //i在选择的水平段范围时，只执行初次。此时selectedMinRowIndex就等于pickedRowIndex了，pickedMaxRowIndex等于this.pickedRowIndex+this.pickedRowSpan-1
+          if(i===this.pickedRowIndex){
+            //获取该陀合并后的数据item
+            curCellData=this.tabData.filter(item=>item.rowIndex===this.pickedRowIndex&&item.colIndex===this.pickedColIndex);
+            for(let m=this.pickedColIndex;m<this.pickedColIndex+newSelectedColSpanCount;m+=everyNewCreateDataColSpan){
+              if(m===this.pickedColIndex){
+                continue;
+              }
+              newCreatedData.push({
+                id:this.$getRandomCode(8),
+                component:"MCTextContainer",
+                rowIndex:i,
+                colIndex:m,
+                rowSpan:this.pickedRowSpan,
+                colSpan:everyNewCreateDataColSpan
+              });
+            }
+            continue;
+          }
+          if(i>this.pickedRowIndex&&i<=this.pickedRowIndex+this.pickedRowSpan-1){
+            continue;//为了确保该范围内只执行1次。
+          }
+
+          //执行非水平选择段的处理逻辑
+          //步骤1：先处理完全落入，minColIndex和maxColIndex之间的对象
+          //当列数发生变化的时候才执行下面的调整涉及到的列信息
+          if(newSelectedColSpanCount>this.pickedColSpan){
+            for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
+              const curCellsFullInSelectedColRange = this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j&&(item.colSpan===1||item.colIndex+item.colSpan-1<=this.selectedMaxColIndex));
+
+              if(curCellsFullInSelectedColRange&&curCellsFullInSelectedColRange.length>0){
+                const curNewColIndex=(j-this.pickedColIndex)*newSelectedColSpanCount/this.pickedColSpan+this.pickedColIndex;
+
+                curCellsFullInSelectedColRange.forEach(item=>{
+                  //其实如果正确逻辑的话，这里的每次循环的结果curNewColSpan的值都是一样的
+                  const curNewColSpan=item.colSpan*newSelectedColSpanCount/this.pickedColSpan;
+                  if(!cellRecordsForFullIn.has(item)){
+                    cellRecordsForFullIn.set(item,{
+                      colIndex:curNewColIndex,
+                      colSpan:curNewColSpan,
+                    });
+                  }
+                });
+              }
+            }
+            //左侧存在部分相交的cells
+            const cellsLeftIntersectedWithSelectedRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex<this.selectedMinColIndex)&&(item.colIndex+item.colSpan-1>=this.selectedMinColIndex&&item.colIndex+item.colSpan-1<=this.selectedMaxColIndex));
+            if(cellsLeftIntersectedWithSelectedRange&&cellsLeftIntersectedWithSelectedRange.length>0){
+              //cellRecordsForLeftIntersectedWith
+              cellsLeftIntersectedWithSelectedRange.forEach(item=>{
+                const colSpanCountToJustify=(item.colSpan+item.colIndex-1)-this.pickedColIndex+1;
+                const restColSpan=item.colSpan-colSpanCountToJustify;
+                if(restColSpan<1){
+                  throw new Error("逻辑异常，左侧的非选择区域的长度小于1，但仍被归为左侧存在相交");
+                }
+                const curNewSpan=restColSpan+colSpanCountToJustify*newSelectedColSpanCount/this.pickedColSpan;
+                if(!cellRecordsForLeftIntersectedWith.has(item)){
+                  cellRecordsForLeftIntersectedWith.set(item,{
+                    colIndex:item.colIndex,
+                    colSpan:curNewSpan,
+                  });
+                }
+              });
+            }
+            //单元格起于选择selectedMinColIndex，终点又大于selectedMinColIndex的单元格
+            const cellsFullOutSelectedColRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex<this.selectedMinColIndex)&&(item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
+            if(cellsFullOutSelectedColRange&&cellsFullOutSelectedColRange.length>0){
+              //cellRecordsForLeftIntersectedWith
+              cellsFullOutSelectedColRange.forEach(item=>{
+                const restColSpan=item.colSpan-this.pickedColSpan;
+                if(restColSpan<1){
+                  throw new Error("逻辑异常，左侧的非选择区域的长度小于1，但仍被归为左侧存在相交");
+                }
+                const curNewSpan=restColSpan+newSelectedColSpanCount;
+                if(!cellRecordsForFullOuter.has(item)){
+                  cellRecordsForFullOuter.set(item,{
+                    colIndex:item.colIndex,
+                    colSpan:curNewSpan,
+                  });
+                }
+              });
+            }
+            //右侧存在部分相交的cells
+            const cellsRightIntersectedWithSelectedRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex>=this.selectedMinColIndex&&item.colIndex<=this.selectedMaxColIndex)&&(item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
+            if(cellsRightIntersectedWithSelectedRange&&cellsRightIntersectedWithSelectedRange.length>0){
+              cellsRightIntersectedWithSelectedRange.forEach(item=>{
+                const colSpanCountToJustify=this.selectedMaxColIndex-item.colIndex+1;
+                const restColSpan=item.colSpan-colSpanCountToJustify;
+                if(restColSpan<1){
+                  throw new Error("逻辑异常，右侧的非选择区域的长度小于1，但仍被归为右侧存在相交");
+                }
+                const curNewSpan=restColSpan+colSpanCountToJustify*newSelectedColSpanCount/this.pickedColSpan;
+                //注意colIndex和左侧相交相比，此处要发生变化。
+                const curNewColIndex=(item.colIndex-this.pickedColIndex)*newSelectedColSpanCount/this.pickedColSpan+this.pickedColIndex;
+                if(!cellRecordsForRightIntersectedWith.has(item)){
+                  cellRecordsForRightIntersectedWith.set(item,{
+                    colIndex:curNewColIndex,
+                    colSpan:curNewSpan,
+                  });
+                }
+              })
+            }
+          }
+        }
+
+        //更新上述数据
+        if(curCellData?.length>0){
+          curCellData.forEach(item=>{
+            item.colSpan=everyNewCreateDataColSpan;
+          });
+        }
+        if(newCreatedData?.length>0){
+          newCreatedData.forEach(item=>{
+            this.tabData.push(item);
+          });
+        }
+        this.changeItemColIndexAndSpan(cellRecordsForFullIn);
+        this.changeItemColIndexAndSpan(cellRecordsForLeftIntersectedWith);
+        this.changeItemColIndexAndSpan(cellRecordsForRightIntersectedWith);
+        this.changeItemColIndexAndSpan(cellRecordsForFullOuter);
+        this.changeItemColIndexAndSpan(cellRecordsForFullRight);
+
+        //还要记得更新总的行列数。
+        this.myColCount=this.colCount+addColCount;
+      }
+      splitRowCount===1?this.clearCurSelectedCells():this.doSplitRow(splitRowCount,splitColCount,curCellData,newCreatedData,everyNewCreateDataColSpan);
+    },
+    doSplitRow(splitRowCount,splitColCount,curCellData,newCreatedData,newPickedColSpan){
+      if(splitColCount===1){
+        this.clearCurSelectedCells();
+        return;
+      }
+      const isColHasSplit=splitColCount>1;
+      //最大框选到的colMaxIndex要修改。其实pickedColSpan也要改，
+      if(isColHasSplit>1){//如果大于1，则newCreatedData势必有值，也就是上边拆分列时，多拆出来对象时，那么它最大的列选择索引才发生变化。
+        this.pickedColSpan=newPickedColSpan;
+        const maxRightNewCreatedCell=newCreatedData.sort((x,y)=>x.colIndex>y.colIndex?-1:x.colIndex<y.colIndex?-1:0)[0];
+        this.selectedMaxColIndex=maxRightNewCreatedCell.colIndex+newPickedColSpan;
+        console.log("最右侧选择的列索引",this.selectedMaxColIndex);
+      }
+      const newSelectedRowSpanCount=lcm(this.pickedRowSpan,splitRowCount);
+      const addRowCount=newSelectedRowSpanCount-this.pickedRowSpan;
+
+      const everyNewCreateDataRowSpan=newSelectedRowSpanCount/splitRowCount;
+      if(!Number.isInteger(everyNewCreateDataRowSpan)){
+        throw new Error("最小公倍数逻辑异常，因为没有被整除"+everyNewCreateDataRowSpan);
+      }
+      //最后需要统一处理的对象，放置频繁触发响应式，且避免索引和跨数变更，导致的参照改变，而引发的潜在异常。
+      // let curCellData;//需要将colSpan设置为everyNewCreateDataColSpan
+      // const newCreatedData=[];
+
+      const finalNewCreate=[];
+      const cellRecordsForFullIn=new Map();
+      const cellRecordsForLeftIntersectedWith=new Map();//这里指的就是top了
+      const cellRecordsForRightIntersectedWith=new Map();//这里指的就是bottom了
+      const cellRecordsForFullOuter=new Map();
+      const cellRecordsForFullRight=new Map();
+
+      if(!isColHasSplit){
+        //对应于curCellData是undefined的情况，此时newCreatedData也是空的
+        curCellData=this.tabData.filter(item=>item.rowIndex===this.pickedRowIndex&&item.colIndex===this.pickedColIndex);
+        for(let m=this.pickedRowIndex;m<this.pickedRowIndex+newSelectedRowSpanCount;m+=everyNewCreateDataRowSpan){
+          if(m===this.pickedRowIndex){
+            continue;
+          }
+          finalNewCreate.push({
+            id:this.$getRandomCode(8),
+            component:"MCTextContainer",
+            colIndex:this.pickedColIndex,
+            rowIndex:m,
+            colSpan:this.pickedColSpan,
+            rowSpan:everyNewCreateDataRowSpan
+          });
+        }
+      }else{
+        newCreatedData.forEach(item=>{
+          curCellData.push(item);//各列的内容都往待修改rowIndex和rowSpan的curCellData加
+          //各个列的内容，再都水平切割
+          for(let m=this.pickedRowIndex;m<this.pickedRowIndex+newSelectedRowSpanCount;m+=everyNewCreateDataRowSpan){
+            if(m===this.pickedRowIndex){
               continue;
             }
-            newCreatedData.push({
+            finalNewCreate.push({
               id:this.$getRandomCode(8),
               component:"MCTextContainer",
-              rowIndex:i,
-              colIndex:m,
-              rowSpan:this.pickedRowSpan,
-              colSpan:everyNewCreateDataColSpan
+              colIndex:item.colIndex,
+              rowIndex:m,
+              colSpan:this.pickedColSpan,
+              rowSpan:everyNewCreateDataRowSpan
             });
           }
-          continue;
+        });
+        //把最原始选择的区域的，经列切割后的最左侧列，拆出来新的项放到finalNewCreate，并最终push到最终结果中
+        for(let m=this.pickedRowIndex;m<this.pickedRowIndex+newSelectedRowSpanCount;m+=everyNewCreateDataRowSpan){
+          if(m===this.pickedRowIndex){
+            continue;
+          }
+          finalNewCreate.push({
+            id:this.$getRandomCode(8),
+            component:"MCTextContainer",
+            colIndex:this.pickedColIndex,
+            rowIndex:m,
+            colSpan:this.pickedColSpan,
+            rowSpan:everyNewCreateDataRowSpan
+          });
         }
-        if(i>this.pickedRowIndex&&i<=this.pickedRowIndex+this.pickedRowSpan-1){
-          continue;
+      }
+
+      for(let i=0;i<this.colCount;i++){
+        if(newSelectedRowSpanCount>this.pickedRowSpan){//需要增添行的时候
+          const bottomCells=this.tabData.filter(item=>item.colIndex===i&&item.rowIndex>this.selectedMaxRowIndex);
+          if(bottomCells&&bottomCells.length>0){
+            bottomCells.forEach(item=>{
+              if(!cellRecordsForFullRight.has(item)){
+                const newRowIndex=item.rowIndex+addRowCount;
+                cellRecordsForFullRight.set(item,{
+                  rowSpan:item.rowSpan,
+                  rowIndex:newRowIndex,
+                });
+              }
+            })
+          }
+        }
+
+        if(i>=this.pickedColIndex&&i<=this.selectedMaxColIndex){
+          continue;//为了确保该范围内只执行1次。
         }
 
         //执行非水平选择段的处理逻辑
         //步骤1：先处理完全落入，minColIndex和maxColIndex之间的对象
-        // const cellsFullInSelectedColRange=[];
-        for(let j=this.selectedMinColIndex;j<=this.selectedMaxColIndex;j++){
-          const curCellsFullInSelectedColRange = this.tabData.filter(item=>item.rowIndex===i&&item.colIndex===j&&(item.colSpan===1||item.colIndex+item.colSpan-1<=this.selectedMaxColIndex));
-          // cellsFullInSelectedColRange.push(...curCellsFullInSelectedColRange);
+        //当列数发生变化的时候才执行下面的调整涉及到的列信息
+        if(newSelectedRowSpanCount>this.pickedRowSpan){
+          for(let j=this.selectedMinRowIndex;j<=this.selectedMaxRowIndex;j++){
+            const curCellsFullInSelectedColRange = this.tabData.filter(item=>item.colIndex===i&&item.rowIndex===j&&(item.rowSpan===1||item.rowIndex+item.rowSpan-1<=this.selectedMaxRowIndex));
+
+            if(curCellsFullInSelectedColRange&&curCellsFullInSelectedColRange.length>0){
+              const curNewColIndex=(j-this.pickedRowIndex)*newSelectedRowSpanCount/this.pickedRowSpan+this.pickedRowIndex;
+
+              curCellsFullInSelectedColRange.forEach(item=>{
+                //其实如果正确逻辑的话，这里的每次循环的结果curNewColSpan的值都是一样的
+                const curNewColSpan=item.rowSpan*newSelectedRowSpanCount/this.pickedRowSpan;
+                if(!cellRecordsForFullIn.has(item)){
+                  cellRecordsForFullIn.set(item,{
+                    rowIndex:curNewColIndex,
+                    rowSpan:curNewColSpan,
+                  });
+                }
+              });
+            }
+          }
+          //左侧存在部分相交的cells
+          const cellsLeftIntersectedWithSelectedRange = this.tabData.filter(item=>(item.rowSpan!==1&&item.colIndex===i&&item.rowIndex<this.selectedMinRowIndex)&&(item.rowIndex+item.rowSpan-1>=this.selectedMinRowIndex&&item.rowIndex+item.rowSpan-1<=this.selectedMaxRowIndex));
+
+          if(cellsLeftIntersectedWithSelectedRange&&cellsLeftIntersectedWithSelectedRange.length>0){
+            //cellRecordsForLeftIntersectedWith
+            cellsLeftIntersectedWithSelectedRange.forEach(item=>{
+              const rowSpanCountToJustify=(item.rowSpan+item.rowIndex-1)-this.pickedRowIndex+1;
+              const restRowSpan=item.rowSpan-rowSpanCountToJustify;
+              if(restRowSpan<1){
+                throw new Error("逻辑异常，左侧的非选择区域的长度小于1，但仍被归为左侧存在相交");
+              }
+              const curNewSpan=restRowSpan+rowSpanCountToJustify*newSelectedRowSpanCount/this.pickedRowSpan;
+              if(!cellRecordsForLeftIntersectedWith.has(item)){
+                cellRecordsForLeftIntersectedWith.set(item,{
+                  rowIndex:item.rowIndex,
+                  rowSpan:curNewSpan,
+                });
+              }
+            });
+          }
+          //单元格起于选择selectedMinColIndex，终点又大于selectedMinColIndex的单元格
+          const cellsFullOutSelectedColRange = this.tabData.filter(item=>(item.rowSpan!==1&&item.colIndex===i&&item.rowIndex<this.selectedMinRowIndex)&&(item.rowIndex+item.rowSpan-1>this.selectedMaxRowIndex));
+          if(cellsFullOutSelectedColRange&&cellsFullOutSelectedColRange.length>0){
+            //cellRecordsForLeftIntersectedWith
+            cellsFullOutSelectedColRange.forEach(item=>{
+              const restRowSpan=item.rowSpan-this.pickedRowSpan;
+              if(restRowSpan<1){
+                throw new Error("逻辑异常，左侧的非选择区域的长度小于1，但仍被归为左侧存在相交");
+              }
+              const curNewSpan=restRowSpan+newSelectedRowSpanCount;
+              if(!cellRecordsForFullOuter.has(item)){
+                cellRecordsForFullOuter.set(item,{
+                  rowIndex:item.rowIndex,
+                  rowSpan:curNewSpan,
+                });
+              }
+            });
+          }
+          //右侧存在部分相交的cells
+          const cellsRightIntersectedWithSelectedRange = this.tabData.filter(item=>(item.rowSpan!==1&&item.colIndex===i&&item.rowIndex>=this.selectedMinRowIndex&&item.rowIndex<=this.selectedMaxRowIndex)&&(item.rowIndex+item.rowSpan-1>this.selectedMaxRowIndex));
+          if(cellsRightIntersectedWithSelectedRange&&cellsRightIntersectedWithSelectedRange.length>0){
+            cellsRightIntersectedWithSelectedRange.forEach(item=>{
+              const rowSpanCountToJustify=this.selectedMaxRowIndex-item.rowIndex+1;
+              const restRowSpan=item.rowSpan-rowSpanCountToJustify;
+              if(restRowSpan<1){
+                throw new Error("逻辑异常，右侧的非选择区域的长度小于1，但仍被归为右侧存在相交");
+              }
+              const curNewSpan=restRowSpan+rowSpanCountToJustify*newSelectedRowSpanCount/this.pickedRowSpan;
+              //注意colIndex和左侧相交相比，此处要发生变化。
+              const curNewColIndex=(item.rowIndex-this.pickedRowIndex)*newSelectedRowSpanCount/this.pickedRowSpan+this.pickedRowIndex;
+              if(!cellRecordsForRightIntersectedWith.has(item)){
+                cellRecordsForRightIntersectedWith.set(item,{
+                  rowIndex:curNewColIndex,
+                  rowSpan:curNewSpan,
+                });
+              }
+            })
+          }
         }
-        //左侧存在部分相交的cells
-        const cellsLeftIntersectedWithSelectedRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex<this.selectedMinColIndex)&&(item.colIndex+item.colSpan-1>=this.selectedMinColIndex&&item.colIndex+item.colSpan-1<=this.selectedMaxColIndex));
-        const cellsFullOutSelectedColRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex<this.selectedMinColIndex)&&(item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
-        const cellsRightIntersectedWithSelectedRange = this.tabData.filter(item=>(item.colSpan!==1&&item.rowIndex===i&&item.colIndex>=this.selectedMinColIndex&&item.colIndex<=this.selectedMaxColIndex)&&(item.colIndex+item.colSpan-1>this.selectedMaxColIndex));
       }
+
+      //更新上述数据
+      if(curCellData?.length>0){
+        curCellData.forEach(item=>{
+          item.rowSpan=everyNewCreateDataRowSpan;
+        });
+      }
+      if(finalNewCreate?.length>0){
+        finalNewCreate.forEach(item=>{
+          this.tabData.push(item);
+        });
+      }
+      this.changeItemColIndexAndSpan(cellRecordsForFullIn);
+      this.changeItemColIndexAndSpan(cellRecordsForLeftIntersectedWith);
+      this.changeItemColIndexAndSpan(cellRecordsForRightIntersectedWith);
+      this.changeItemColIndexAndSpan(cellRecordsForFullOuter);
+      this.changeItemColIndexAndSpan(cellRecordsForFullRight);
+
+      //还要记得更新总的行列数。
+      this.myRowCount=this.rowCount+addRowCount;
+      this.clearCurSelectedCells();
     },
     //删除所在行
     doDeleteLocatedRow(){
