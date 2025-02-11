@@ -106,10 +106,10 @@ export default {
         }
         console.log(value);
         this.$emit("update:widgets",value);
-      }
-    },
-    immediate: true,
-    deep:true
+      },
+      immediate: true,
+      deep:true
+    }
   },
   methods:{
     deleteWidget(component){

@@ -68,6 +68,7 @@ export default {
         left:0,
         top:0,
       },
+      isToLessRowByDeleteRow:false,
       isShowOperationBar:false,
       writableIsClickTD:false,//为了控制单元格操作栏的显隐
       isClickedAtOperationBar:false,//判断是否点击了操作柄内部的元素
@@ -241,8 +242,12 @@ export default {
             this.rowHeights.push(40);
           }
         }else{
-          for(let i=0;i<oldValue-this.rowCount;i++){
-            this.rowHeights.pop();
+          if(!this.isToLessRowByDeleteRow){
+            for(let i=0;i<oldValue-this.rowCount;i++){
+              this.rowHeights.pop();
+            }
+          }else{
+            this.isToLessRowByDeleteRow=false;
           }
         }
       }
@@ -286,6 +291,48 @@ export default {
         padding:list[0].cellFieldsVal?.padding+'px',
         backgroundColor:list[0].cellFieldsVal?.contentBgc??'#ffffff'
       }
+
+      // const colSpan=list[0]?list[0].colSpan:1;
+      // //todo 这种区别对待的，最好要做一个统一处理
+      // if(!list||list.length===0){
+      //   return {
+      //     width:columnWidths[index]*colSpan+"%",
+      //     backgroundColor:this.globalCellBgc
+      //   };
+      // }
+      // console.log(list[0].cellFieldsVal?.contentBgc||this.globalCellBgc);
+      // return {
+      //   width:columnWidths[index]*colSpan+"%",
+      //   padding:list[0].cellFieldsVal?.padding+'px',
+      //   backgroundColor:list[0].cellFieldsVal?.contentBgc??'#ffffff'
+      // }
+    },
+    //要求索引从小到大传入
+    mergeCellHeight(allMergeIndices){
+      // allMergeIndices.reduce((accumulateVal,curVal)=>{
+      //   const res = accumulateVal+this.rowHeights[curVal];
+      //   return res;
+      // };
+      let totalHeight=0;
+      allMergeIndices.forEach(item=>{
+        totalHeight+=this.rowHeights[item];
+      });
+      this.rowHeights[allMergeIndices[0]]=totalHeight;
+      console.log(totalHeight,"totalHeight",allMergeIndices,this.rowHeights[allMergeIndices[0]],this.rowHeights);
+      allMergeIndices.splice(0,1);
+      const reverseIndices=allMergeIndices.reverse();
+      console.log(reverseIndices,"reverseIndices");
+      reverseIndices.forEach(item=>{
+        this.rowHeights.splice(item,1);
+      });
+      console.log(this.rowHeights);
+    },
+    //删除所选单元格的高度
+    removeCellHeight(allIndiceToRemove){
+      const reverseIndices=allIndiceToRemove.reverse();
+      reverseIndices.forEach(item=>{
+        this.rowHeights.splice(item,1);
+      });
     },
     doUpdateWidgetsForDel(rowIndex,colIndex,delValue){
       const target=this.tabData.findIndex(item=>item.rowIndex===rowIndex&&item.colIndex===colIndex);
@@ -502,10 +549,18 @@ export default {
           console.log("行span设置为1无效？",allMatchedItems);
         }
 
+        const mergeIndices=[];
+        for(let s=this.selectedMinRowIndex;s<=this.selectedMaxRowIndex;s++){
+          mergeIndices.push(s);
+        }
+        this.mergeCellHeight(mergeIndices);
+
+        this.isToLessRowByDeleteRow=true;
         this.myRowCount=restRowCount;
         //计算更新选择框
         this.selectedMaxRowIndex=this.selectedMaxRowIndex-rowCountToSubtract;
         // console.log(this.itemComponent.rowCount,restRowCount);
+
       }
 
       //todo 列操作
@@ -560,9 +615,17 @@ export default {
         });
       }
     },
+    changeItemRowIndexAndSpan(items){
+      if(items?.size>0){
+        items.forEach((value,key)=>{
+          key.rowIndex=value.rowIndex;
+          key.rowSpan=value.rowSpan;
+        });
+      }
+    },
     //拆分单元格
     doSplitRowOrColumn(splitRowCount,splitColCount){
-      console.log(splitRowCount,splitColCount,"要拆分单元格了");
+      console.log(splitRowCount,splitColCount,"要拆分单元格了",this.tabData);
       if(Number.isNaN(splitColCount)||Number.isNaN(splitRowCount)){
         //todo 都没有一些错误提示框，可采用el-modal实现
         return;
@@ -582,10 +645,10 @@ export default {
       }
 
       //判断所选的单元格是否是合并的对象
-      if(this.pickedRowSpan===1&&this.pickedColSpan===1){
-        console.warn("暂不支持最小单元的拆分");
-        return;
-      }
+      // if(this.pickedRowSpan===1&&this.pickedColSpan===1){
+      //   console.warn("暂不支持最小单元的拆分");
+      //   return;
+      // }
 
       //计算由于拆分当前单元格，由于列拆分，而制造的总的单元格数。例如，当前单元格跨3列，被拆分为了2列，此时的制造总单元格为其最小公倍数6
       const newSelectedColSpanCount=lcm(this.pickedColSpan,splitColCount);
@@ -757,7 +820,8 @@ export default {
       splitRowCount===1?this.clearCurSelectedCells():this.doSplitRow(splitRowCount,splitColCount,curCellData,newCreatedData,everyNewCreateDataColSpan);
     },
     doSplitRow(splitRowCount,splitColCount,curCellData,newCreatedData,newPickedColSpan){
-      if(splitColCount===1){
+      console.log("执行行拆分逻辑了",splitColCount);
+      if(splitRowCount===1){
         this.clearCurSelectedCells();
         return;
       }
@@ -779,14 +843,14 @@ export default {
       //最后需要统一处理的对象，放置频繁触发响应式，且避免索引和跨数变更，导致的参照改变，而引发的潜在异常。
       // let curCellData;//需要将colSpan设置为everyNewCreateDataColSpan
       // const newCreatedData=[];
-
+      console.log("everyNewCreateDataRowSpan",everyNewCreateDataRowSpan);
       const finalNewCreate=[];
       const cellRecordsForFullIn=new Map();
       const cellRecordsForLeftIntersectedWith=new Map();//这里指的就是top了
       const cellRecordsForRightIntersectedWith=new Map();//这里指的就是bottom了
       const cellRecordsForFullOuter=new Map();
       const cellRecordsForFullRight=new Map();
-
+      console.log("thisTabData的值",this.tabData);
       if(!isColHasSplit){
         //对应于curCellData是undefined的情况，此时newCreatedData也是空的
         curCellData=this.tabData.filter(item=>item.rowIndex===this.pickedRowIndex&&item.colIndex===this.pickedColIndex);
@@ -862,11 +926,12 @@ export default {
         //当列数发生变化的时候才执行下面的调整涉及到的列信息
         if(newSelectedRowSpanCount>this.pickedRowSpan){
           for(let j=this.selectedMinRowIndex;j<=this.selectedMaxRowIndex;j++){
+            console.log("是否搜索前已经出现了undefined",i,j,this.tabData.filter(item=>item.colIndex===undefined&&item.colSpan===undefined));
             const curCellsFullInSelectedColRange = this.tabData.filter(item=>item.colIndex===i&&item.rowIndex===j&&(item.rowSpan===1||item.rowIndex+item.rowSpan-1<=this.selectedMaxRowIndex));
 
             if(curCellsFullInSelectedColRange&&curCellsFullInSelectedColRange.length>0){
               const curNewColIndex=(j-this.pickedRowIndex)*newSelectedRowSpanCount/this.pickedRowSpan+this.pickedRowIndex;
-
+              console.log(curCellsFullInSelectedColRange,"当前收集到的curCellsFullInSelectedColRange");
               curCellsFullInSelectedColRange.forEach(item=>{
                 //其实如果正确逻辑的话，这里的每次循环的结果curNewColSpan的值都是一样的
                 const curNewColSpan=item.rowSpan*newSelectedRowSpanCount/this.pickedRowSpan;
@@ -939,7 +1004,7 @@ export default {
           }
         }
       }
-
+      console.log(cellRecordsForFullIn,curCellData,finalNewCreate,"左右两侧收集到的map",this.pickedColIndex,this.pickedColSpan);
       //更新上述数据
       if(curCellData?.length>0){
         curCellData.forEach(item=>{
@@ -951,11 +1016,11 @@ export default {
           this.tabData.push(item);
         });
       }
-      this.changeItemColIndexAndSpan(cellRecordsForFullIn);
-      this.changeItemColIndexAndSpan(cellRecordsForLeftIntersectedWith);
-      this.changeItemColIndexAndSpan(cellRecordsForRightIntersectedWith);
-      this.changeItemColIndexAndSpan(cellRecordsForFullOuter);
-      this.changeItemColIndexAndSpan(cellRecordsForFullRight);
+      this.changeItemRowIndexAndSpan(cellRecordsForFullIn);
+      this.changeItemRowIndexAndSpan(cellRecordsForLeftIntersectedWith);
+      this.changeItemRowIndexAndSpan(cellRecordsForRightIntersectedWith);
+      this.changeItemRowIndexAndSpan(cellRecordsForFullOuter);
+      this.changeItemRowIndexAndSpan(cellRecordsForFullRight);
 
       //还要记得更新总的行列数。
       this.myRowCount=this.rowCount+addRowCount;
@@ -1054,6 +1119,12 @@ export default {
         key.rowSpan=value;
       });
 
+      const mergeIndices=[];
+      for(let s=this.selectedMinRowIndex;s<=this.selectedMaxRowIndex;s++){
+        mergeIndices.push(s);
+      }
+      this.removeCellHeight(mergeIndices);
+      this.isToLessRowByDeleteRow=true;
       this.myRowCount=restRowCount;
       //计算更新选择框
       this.clearCurSelectedCells();
