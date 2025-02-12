@@ -14,11 +14,12 @@
           <td
               v-for="(cell, cellIndex) in row"
               :key="cellIndex"
-              :style="{ width: columnWidths[cellIndex]}"
+              :style="{ width: cell.width}"
               class="resizable-cell flex-td"
+              :colspan="cellIndex===0&&rowIndex===0?2:1"
           >
             <div class="table-container">
-              {{ cell }}
+              {{ cell.value }}
             </div>
             <div class="row-resizer" @mousedown="startResizingRow(rowIndex)"></div>
             <div
@@ -42,9 +43,8 @@ export default {
       list:[],
       headers: ['Header 1', 'Header 2', 'Header 3'],
       rows: [
-        ['Cell 1-1', 'Cell 1-2', 'Cell 1-3'],
-        ['Cell 2-1', 'Cell 2-2', 'Cell 2-3'],
-        ['Cell 3-1', 'Cell 3-2', 'Cell 3-3'],
+        [{value:'Cell 1-1',width:"66.6667%"}, {value:'Cell 1-2',width:"33.333%"}],
+        [{value:'Cell 2-1',width:"33.333%"}, {value:'Cell 2-2',width:"33.333%"}, {value:'Cell 2-3',width:"33.333%"}],
       ],
       rowHeights: [], // 初始行高
       columnWidths: [], // 初始列宽
@@ -61,7 +61,7 @@ export default {
   },
   mounted() {
     for(let i=0;i<this.colCount;i++){
-      this.columnWidths.push(100/this.colCount+"%");
+      this.columnWidths.push(100/this.colCount);
     }
 
     for(let j=0;j<this.rowCount;j++){
@@ -114,17 +114,75 @@ export default {
     resizeColumn(event) {
       if (!this.isResizingColumn) return;
       const deltaX = event.clientX - this.initialX;
+
+      let leftTopCell;
+      this.rows.some(row => {
+        return row.some(cell => {
+          if (cell.value === "Cell 1-1") {
+            leftTopCell = cell;
+            return true; // 退出内层循环
+          }
+          return false;
+        });
+      });
+      leftTopCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(leftTopCell.width)+deltaX);
+      let centerBottomCell;
+      this.rows.some(row => {
+        return row.some(cell => {
+          if (cell.value === "Cell 2-2") {
+            centerBottomCell = cell;
+            return true; // 退出内层循环
+          }
+          return false;
+        });
+      });
+      centerBottomCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(centerBottomCell.width)+deltaX);
+
       // 调整列宽，确保最小宽度
-      const newWidth = Math.max(50, this.getRealWidthOfColumn(this.columnWidths[this.resizingColumnIndex]) + deltaX);
+      // const newWidth = Math.max(50, this.getRealWidthOfColumn(this.columnWidths[this.resizingColumnIndex]) + deltaX);
+      const newWidth = this.getRealWidthOfColumn(this.columnWidths[this.resizingColumnIndex]) + deltaX;
       // 如果是非最后一列，需要调整相邻列的宽度
       if (this.resizingColumnIndex < this.columnWidths.length - 1) {
         const nextColumnWidth = this.getRealWidthOfColumn(this.columnWidths[this.resizingColumnIndex + 1]) - deltaX;
         console.log(deltaX,newWidth,nextColumnWidth);
-        // 确保相邻列的最小宽度
-        if (nextColumnWidth >= 50) {
-          this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
-          this.$set(this.columnWidths, this.resizingColumnIndex + 1, this.getPercentColumnWidth(nextColumnWidth));
+
+        if(nextColumnWidth<0||newWidth<0){
+          this.initialX = event.clientX;
+          return;
         }
+
+        let leftTopCell;
+        this.rows.some(row => {
+          return row.some(cell => {
+            if (cell.value === "Cell 1-2") {
+              leftTopCell = cell;
+              return true; // 退出内层循环
+            }
+            return false;
+          });
+        });
+        leftTopCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(leftTopCell.width)-deltaX);
+        let centerBottomCell;
+        this.rows.some(row => {
+          return row.some(cell => {
+            if (cell.value === "Cell 2-3") {
+              centerBottomCell = cell;
+              return true; // 退出内层循环
+            }
+            return false;
+          });
+        });
+        console.log("cell12,cell23",leftTopCell,centerBottomCell);
+        centerBottomCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(centerBottomCell.width)-deltaX);
+
+
+        // 确保相邻列的最小宽度
+        // if (nextColumnWidth >= 50) {
+        //   this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
+        //   this.$set(this.columnWidths, this.resizingColumnIndex + 1, this.getPercentColumnWidth(nextColumnWidth));
+        // }
+        this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
+        this.$set(this.columnWidths, this.resizingColumnIndex + 1, this.getPercentColumnWidth(nextColumnWidth));
       } else {
         // 如果是最后一列，只调整当前列
         this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
