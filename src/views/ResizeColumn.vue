@@ -9,6 +9,9 @@
         :sort="true"
         :group="{name:'xtwangzi'}">
       <table>
+        <col :style="{width:rows[1][0].width}" />
+        <col :style="{width:rows[1][1].width}" />
+        <col :style="{width:rows[1][2].width}" />
         <tbody>
         <tr v-for="(row, rowIndex) in rows" :key="rowIndex" :style="{ height: rowHeights[rowIndex] + 'px' }">
           <td
@@ -16,7 +19,9 @@
               :key="cellIndex"
               :style="{ width: cell.width}"
               class="resizable-cell flex-td"
-              :colspan="cellIndex===0&&rowIndex===0?2:1"
+              :colspan="cell.colSpan"
+              :rowspan="cell.rowSpan"
+              :data-rowIndex="rowIndex" :data-colIndex="cellIndex" :data-colSpan="cell.colSpan" :data-rowSpan="cell.rowSpan"
           >
             <div class="table-container">
               {{ cell.value }}
@@ -43,8 +48,8 @@ export default {
       list:[],
       headers: ['Header 1', 'Header 2', 'Header 3'],
       rows: [
-        [{value:'Cell 1-1',width:"66.6667%"}, {value:'Cell 1-2',width:"33.333%"}],
-        [{value:'Cell 2-1',width:"33.333%"}, {value:'Cell 2-2',width:"33.333%"}, {value:'Cell 2-3',width:"33.333%"}],
+        [{value:'Cell 1-1',width:'80%',rowIndex:0,colIndex:0,rowSpan:1,colSpan:2}, {value:'Cell 1-2',width:'20%',rowIndex:0,colIndex:2,rowSpan:1,colSpan:1}],
+        [{value:'Cell 2-1',width:'60%',rowIndex:1,colIndex:0,rowSpan:1,colSpan:1}, {value:'Cell 2-2',width:'20%',rowIndex:1,colIndex:1,rowSpan:1,colSpan:1}, {value:'Cell 2-3',width:'20%',rowIndex:1,colIndex:2,rowSpan:1,colSpan:1}],
       ],
       rowHeights: [], // 初始行高
       columnWidths: [], // 初始列宽
@@ -75,6 +80,11 @@ export default {
     },
     getRealWidthOfColumn(strWidth){
       return Number.parseFloat(strWidth)*this.parentWidth/100;
+    },
+    getSumWidthOfColumn(strWidth,strWidth1){
+      const numberWidth=Number.parseFloat(strWidth)*this.parentWidth/100;
+      const numberWidth1=Number.parseFloat(strWidth1)*this.parentWidth/100;
+      return this.getPercentColumnWidth(numberWidth+numberWidth1);
     },
     startResizingRow(rowIndex) {
       event.stopPropagation(); // 阻止事件冒泡到draggable组件
@@ -118,7 +128,7 @@ export default {
       let leftTopCell;
       this.rows.some(row => {
         return row.some(cell => {
-          if (cell.value === "Cell 1-1") {
+          if (cell.value === "Cell 2-1") {
             leftTopCell = cell;
             return true; // 退出内层循环
           }
@@ -126,63 +136,64 @@ export default {
         });
       });
       leftTopCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(leftTopCell.width)+deltaX);
-      let centerBottomCell;
-      this.rows.some(row => {
-        return row.some(cell => {
-          if (cell.value === "Cell 2-2") {
-            centerBottomCell = cell;
-            return true; // 退出内层循环
-          }
-          return false;
-        });
-      });
-      centerBottomCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(centerBottomCell.width)+deltaX);
+      // let centerBottomCell;
+      // this.rows.some(row => {
+      //   return row.some(cell => {
+      //     if (cell.value === "Cell 2-2") {
+      //       centerBottomCell = cell;
+      //       return true; // 退出内层循环
+      //     }
+      //     return false;
+      //   });
+      // });
+      // centerBottomCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(centerBottomCell.width)+deltaX);
 
       // 调整列宽，确保最小宽度
       // const newWidth = Math.max(50, this.getRealWidthOfColumn(this.columnWidths[this.resizingColumnIndex]) + deltaX);
-      const newWidth = this.getRealWidthOfColumn(this.columnWidths[this.resizingColumnIndex]) + deltaX;
+      const newWidth = this.getRealWidthOfColumn(leftTopCell.width)+deltaX;
       // 如果是非最后一列，需要调整相邻列的宽度
       if (this.resizingColumnIndex < this.columnWidths.length - 1) {
-        const nextColumnWidth = this.getRealWidthOfColumn(this.columnWidths[this.resizingColumnIndex + 1]) - deltaX;
-        console.log(deltaX,newWidth,nextColumnWidth);
 
+        let leftTopCell1;
+        this.rows.some(row => {
+          return row.some(cell => {
+            if (cell.value === "Cell 2-2") {
+              leftTopCell1 = cell;
+              return true; // 退出内层循环
+            }
+            return false;
+          });
+        });
+
+        const nextColumnWidth=this.getRealWidthOfColumn(leftTopCell1.width)-deltaX;
         if(nextColumnWidth<0||newWidth<0){
           this.initialX = event.clientX;
           return;
         }
+        console.log(newWidth,nextColumnWidth);
+        leftTopCell1.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(leftTopCell1.width)-deltaX);
+        // let centerBottomCell;
+        // this.rows.some(row => {
+        //   return row.some(cell => {
+        //     if (cell.value === "Cell 2-3") {
+        //       centerBottomCell = cell;
+        //       return true; // 退出内层循环
+        //     }
+        //     return false;
+        //   });
+        // });
+        console.log("cell12,cell23",leftTopCell.width,leftTopCell1.width);
+        // centerBottomCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(centerBottomCell.width)-deltaX);
 
-        let leftTopCell;
-        this.rows.some(row => {
-          return row.some(cell => {
-            if (cell.value === "Cell 1-2") {
-              leftTopCell = cell;
-              return true; // 退出内层循环
-            }
-            return false;
-          });
-        });
-        leftTopCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(leftTopCell.width)-deltaX);
-        let centerBottomCell;
-        this.rows.some(row => {
-          return row.some(cell => {
-            if (cell.value === "Cell 2-3") {
-              centerBottomCell = cell;
-              return true; // 退出内层循环
-            }
-            return false;
-          });
-        });
-        console.log("cell12,cell23",leftTopCell,centerBottomCell);
-        centerBottomCell.width=this.getPercentColumnWidth(this.getRealWidthOfColumn(centerBottomCell.width)-deltaX);
-
+        // this.getSumWidthOfColumn()
 
         // 确保相邻列的最小宽度
         // if (nextColumnWidth >= 50) {
         //   this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
         //   this.$set(this.columnWidths, this.resizingColumnIndex + 1, this.getPercentColumnWidth(nextColumnWidth));
         // }
-        this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
-        this.$set(this.columnWidths, this.resizingColumnIndex + 1, this.getPercentColumnWidth(nextColumnWidth));
+        // this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
+        // this.$set(this.columnWidths, this.resizingColumnIndex + 1, this.getPercentColumnWidth(nextColumnWidth));
       } else {
         // 如果是最后一列，只调整当前列
         this.$set(this.columnWidths, this.resizingColumnIndex, this.getPercentColumnWidth(newWidth));
@@ -198,7 +209,7 @@ export default {
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .table-container {
   width: 600px;
   overflow: auto;
@@ -230,13 +241,13 @@ th, td {
 }
 
 .row-resizer {
-  width: 4000px;
+  width: 100%;
   height: 1px;
   cursor: ns-resize;
   background-color: #999;
   position: absolute;
   bottom: 0;
-  left: -2000px;
+  left: 0;
   z-index: 999;
 }
 
@@ -246,11 +257,11 @@ th, td {
 
 .col-resizer {
   width: 1px;
-  height: 4000px;
+  height: 100%;
   cursor: ew-resize;
   background-color: #999;
   position: absolute;
-  top: -2000px;
+  top: 0;
   right: 0;
   bottom: 0;
   z-index: 999;
