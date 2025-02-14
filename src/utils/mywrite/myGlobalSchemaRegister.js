@@ -1,6 +1,6 @@
 import Vue from 'vue';
 
-function initCustomComponentsConfig(){
+export function initCustomComponentsConfig(vue){
     const files = require.context('@/components/custom-components', true,/component.json$/);
     const data=[];
     let fields = {};
@@ -14,10 +14,10 @@ function initCustomComponentsConfig(){
     });
 
     Vue.prototype.$fields = fields
+    vue.$store.commit('setFields', fields);
     Vue.prototype.$initializing = data
     console.log(fields,data);
 }
-initCustomComponentsConfig();
 function getSchemaDefaultValue(inputVal){
     const res={};
     for (const inputValKey in inputVal) {

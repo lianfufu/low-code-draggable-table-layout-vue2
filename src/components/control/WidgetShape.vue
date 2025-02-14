@@ -23,15 +23,15 @@ export default {
     curComponent:null
   },
   emits:["deleteWidget"],
-  inject:["control"],
   computed:{
     isSelected(){
-      return this.control.curComponent?.id === this.curComponent.id;
+      return this.$store.state.curComponent?.id === this.curComponent.id;
     }
   },
   methods:{
     setCurComponent(){
-      this.control.curComponent = this.curComponent;
+      console.log("点击后设置store的curComponent的值",this.curComponent);
+      this.$store.commit("setCurComponent",this.curComponent);
     },
     doDeleteComponent(){
       this.$emit("deleteWidget",this.curComponent);

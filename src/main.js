@@ -13,8 +13,9 @@ import Element from "element-ui";
 import "element-ui/lib/theme-chalk/index.css";
 import draggable from "vuedraggable";
 import _ from "lodash";
-import Imgpond from 'imgpond'
-import request from '@/utils/imageRequest'
+import Imgpond from 'imgpond';
+import request from '@/utils/imageRequest';
+import {initCustomComponentsConfig} from "@/utils/mywrite/myGlobalSchemaRegister";
 
 Vue.use(Element);
 Vue.component("draggable",draggable);
@@ -34,8 +35,10 @@ Vue.use(Imgpond, {
   poweredBy: 'element'
 })
 
-new Vue({
+const vue = new Vue({
   router,
   store,
   render: h => h(App)
-}).$mount('#app')
+});
+initCustomComponentsConfig(vue);
+vue.$mount('#app')

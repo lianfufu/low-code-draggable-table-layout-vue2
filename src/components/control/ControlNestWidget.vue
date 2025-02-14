@@ -114,7 +114,7 @@ export default {
   methods:{
     deleteWidget(component){
       this.list.splice(this.list.indexOf(component),1);
-      this.control.curComponent=null;
+      this.$store.commit("setCurComponent",null);
       this.$emit("updateTableChildData",component);
     }
   }

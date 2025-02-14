@@ -41,6 +41,7 @@
 
 <script>
 import JsonViewer from 'vue-json-viewer'
+import { mapState,mapGetters } from 'vuex'
 export default {
   components: {
     JsonViewer
@@ -48,11 +49,17 @@ export default {
   name: "PageBody",
   data(){
     return{
-      curComponent:null,
+      // curComponent:null,
       widgets:[],
-      curFields:null,
+      // curFields:null,
       isClickedTD:false,
     }
+  },
+  computed:{
+    ...mapState({
+      curComponent: state => state.curComponent
+    }),
+    ...mapGetters(["curFields"]),
   },
   provide(){
     return{
@@ -77,17 +84,17 @@ export default {
       console.log(this.isClickedTD,"冒泡出来了down");
     }
   },
-  watch:{
-    curComponent:{
-      handler(value){
-        if(value?.component&&this.$fields[value.component]){
-          this.curFields = this.$fields[this.curComponent.component];
-        }
-      },
-      immediate:true,
-      deep:true
-    }
-  }
+  // watch:{
+  //   curComponent:{
+  //     handler(value){
+  //       if(value?.component&&this.$fields[value.component]){
+  //         this.curFields = this.$fields[this.curComponent.component];
+  //       }
+  //     },
+  //     immediate:true,
+  //     deep:true
+  //   }
+  // }
 }
 </script>
 
